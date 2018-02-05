@@ -1,0 +1,3 @@
+2 # Number of tolerated faults
+(127.0.0.1,4000), (127.0.0.1,4001), (127.0.0.1,4002), (127.0.0.1,4003), (127.0.0.1,4004) # Pairs of (IP, port) for each replica (must equal 2f+1)
+skip_slot # Optional parameter for specific test case
