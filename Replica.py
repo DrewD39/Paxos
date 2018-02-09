@@ -30,9 +30,9 @@ class Replica():
 		# TODO: self.acceptor = Acceptor()
 		# TODO: self.learner = Learner()
 		if proposer:
-			self.proposer = Proposer.Proposer(self.other_replicas)
+			self.proposer = Proposer.Proposer()
 		else:
-			proposer = None # Only one proposer at a time
+			self.proposer = None # Only one proposer at a time
 
 
 	def start_replica (self):
@@ -55,7 +55,8 @@ class Replica():
 		t1.start()
 
 		if self.proposer:
-			proposer.send_leader_message("hello mate")
+			self.proposer.send_leader_message("hello mate")
+			#Messenger.send_header(self.socket_connections_list[0], 255)
 			#Messenger.broadcast_message(self.socket_connections_list, "1: hello mate")
 
 		t1.join()
@@ -76,6 +77,10 @@ class Replica():
 
 			#print str(self.id) + " Successfuly connected on (ip, port) " + str(replica)
 			self.socket_connections_list.append(s)
+
+		# socket connections list should now be set up
+		if self.proposer:
+			self.proposer.set_socket_list(self.socket_connections_list)
 
 		#print "Connections setup for " + str(self.id)
 
@@ -112,6 +117,7 @@ class Replica():
 
 			# Handle received messages
 			for s in rd:
+				#Messenger.recv_header(s)
 				self.recv_message(s)
 
 

@@ -1,5 +1,6 @@
 
 from enum import Enum 
+import sys
 
 class MessageType(Enum):
 	REQUEST = "1"
@@ -10,28 +11,34 @@ class MessageType(Enum):
 
 MSGLEN = len("1: hello mate")
 
+def send_header (socket, msg_size):
+	#print "Sending header " + str(msg_size)
+	msg = '%8s'%msg_size
+	sent = socket.send(msg)
+	if sent == 0:
+		raise RuntimeError("Send header failed")
+
+def recv_header (socket):
+	msg_size = socket.recv(8)
+	#print "Received " + str(msg_size)
+	return int(msg_size)
+
 # recv message on socket
 # return message
 def recv_message (socket):
-	chunks = []
-	bytes_recd = 0
-	while bytes_recd < MSGLEN:
-		chunk = socket.recv(min(MSGLEN - bytes_recd, 2048))
-		if chunk == '':
-			raise RuntimeError("socket connection broken")
-		chunks.append(chunk)
-		bytes_recd = bytes_recd + len(chunk)
-	return ''.join(chunks)
+	msg_size = recv_header(socket)
+	chunk = socket.recv(msg_size)
+	if chunk == '':
+		raise RuntimeError("Receiving message failed")
+	return chunk
 
 
 # Send a single message
 def send_message (socket, msg):
-	totalsent = 0
-	while totalsent < len(msg):
-		sent = socket.send(msg[totalsent:])
-		if sent == 0:
-			raise RuntimeError("socket connection broken")
-		totalsent = totalsent + sent
+	send_header(socket, len(msg))
+	sent = socket.send(msg)
+	if sent == 0:
+			raise RuntimeError("Send message failed")
 
 
 def broadcast_message (sockets, msg):
