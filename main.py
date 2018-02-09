@@ -2,6 +2,7 @@
 import argparse
 from Util import Config
 from Replica import Replica 
+from multiprocessing import Process
 
 if __name__ == "__main__":
 
@@ -18,14 +19,23 @@ if __name__ == "__main__":
 	elif args.tolerated_faults and args.server_pairs and args.parameters: # from CL
 		config = Config(None, args.tolerated_faults, args.server_pairs, args.parameters)
 	else: # just use default values
-		config = Config(None, 1, "(127.0.0.1,4000),(127.0.0.1,4001),(127.0.0.1,4002)", None)
+		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005)", None)
 
 	print config
 	total_processes = 2 * int(config.tolerated_faults) + 1 # 2f + 1
 
 	for i, pair in enumerate(config.server_pairs):
-		if i == 0:# Create a single proposer with replica 0 as the primary
-			replica = Replica(pair[0], pair[1], config.server_pairs, proposer=True) 
+		p = Process(target=Replica, args=(i, pair[0], pair[1], config.server_pairs, True,))
+		p.start()
+	
+	#p.join()
+
+	for id, pair in enumerate(config.server_pairs):
+		if id == 0: # Create a single proposer with replica 0 as the primary
+			replica = Replica(id, pair[0], pair[1], config.server_pairs, proposer=True) 
 		else: 
-			replica = Replica(pair[0], pair[1], config.server_pairs, proposer=False) 
+			replica = Replica(id, pair[0], pair[1], config.server_pairs, proposer=False)
+
+		p = Process(target=replica.start_replica)
+		p.start()
 

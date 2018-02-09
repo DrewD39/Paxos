@@ -1,4 +1,5 @@
 
+
 class Config:
 
 	def __init__ (self, config_file=None, tolerated_faults=None, server_info=None, parameters=None):
