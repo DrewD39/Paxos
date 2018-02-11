@@ -1,0 +1,5 @@
+1. Updated iamleader message
+2. Changed variable nam 'id' to 'idnum' to avoid conflicts with Python lib
+3. Each replica initializes acceptor
+4. Added printd function for debug printing
+

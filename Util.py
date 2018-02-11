@@ -1,4 +1,5 @@
-
+import logging, sys
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 class Config:
 
@@ -30,4 +31,7 @@ class Config:
 
 	def __str__ (self):
 		return "\nConfig is:\n\tTolerated faults: {}\n\tServer pairs: {}\n\tParameters: {}\n\t"\
-					.format(self.tolerated_faults, [', '.join(x) for x in self.server_pairs], self.parameters) 
+					.format(self.tolerated_faults, [', '.join(x) for x in self.server_pairs], self.parameters)
+
+def printd (msg):
+	logging.debug(str(msg))

@@ -1,7 +1,7 @@
 
 import argparse
 from Util import Config
-from Replica import Replica 
+from Replica import Replica
 from multiprocessing import Process
 
 if __name__ == "__main__":
@@ -27,15 +27,14 @@ if __name__ == "__main__":
 	for i, pair in enumerate(config.server_pairs):
 		p = Process(target=Replica, args=(i, pair[0], pair[1], config.server_pairs, True,))
 		p.start()
-	
+
 	#p.join()
 
-	for id, pair in enumerate(config.server_pairs):
-		if id == 0: # Create a single proposer with replica 0 as the primary
-			replica = Replica(id, pair[0], pair[1], config.server_pairs, proposer=True) 
-		else: 
-			replica = Replica(id, pair[0], pair[1], config.server_pairs, proposer=False)
+	for idnum, pair in enumerate(config.server_pairs):
+		if idnum == 0: # Create a single proposer with replica 0 as the primary
+			replica = Replica(idnum, pair[0], pair[1], config.server_pairs, proposer=True)
+		else:
+			replica = Replica(idnum, pair[0], pair[1], config.server_pairs, proposer=False)
 
 		p = Process(target=replica.start_replica)
 		p.start()
-
