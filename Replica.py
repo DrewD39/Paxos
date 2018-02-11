@@ -44,12 +44,11 @@ class Replica():
 		self.serversocket.bind(('', self.port)) # Set up server socket to receive and send messages
 		self.serversocket.listen(5)
 
-		self.client_connections_list = [] # List of sockets to clients
-		t1 = threading.Thread(target=self.setup_server, args=(len(self.other_replicas),))
+		self.connections_list = [] # List of sockets to clients
+		t1 = threading.Thread(target=self.setup_server, args=(len(self.other_replicas[int(self.idnum):]),))
 		t1.start()
 
-		self.socket_connections_list = [] # List of sockets to remote servers
-		self.connect_to_replicas(self.other_replicas)
+		self.connect_to_replicas(self.other_replicas[:int(self.idnum)])
 
 		t1.join() # Wait for all connections to be established
 
@@ -58,14 +57,13 @@ class Replica():
 
 		if self.proposer:
 			self.proposer.send_iamleader_message(str(self.idnum))
-			#Messenger.send_header(self.socket_connections_list[0], 255)
-			#Messenger.broadcast_message(self.socket_connections_list, "1: hello mate")
 
 		t1.join()
 
 
 	def connect_to_replicas (self, replicas):
 		i = 0
+		print str(self.idnum) + " will connect to " + str(replicas)
 		for replica in replicas:
 			connected = False
 			while not connected:
@@ -77,25 +75,25 @@ class Replica():
 			    except Exception as e:
 			    	time.sleep(0) # yield thread
 
-			#printd(str(self.idnum) + " Successfuly connected on (ip, port) " + str(replica))
-			self.socket_connections_list.append(s)
+			print str(self.idnum) + " Successfuly connected on (ip, port) " + str(replica)
+			self.connections_list.append(s)
 
 		# socket connections list should now be set up
 		if self.proposer:
-			self.proposer.set_socket_list(self.socket_connections_list)
+			self.proposer.set_socket_list(self.connections_list)
 
-		#printd("Connections setup for " + str(self.idnum))
+		print str(len(replicas)) + " connections setup for " + str(self.idnum)
 
 
 	def setup_server (self, numb_replicas):
 		i = 0
 		while i < numb_replicas: # We know we should accept connections from all other replicas
 			(clientsocket, address) = self.serversocket.accept()
-			self.client_connections_list.append(clientsocket)
-			#printd(str(self.idnum) + " Accepted connection " + str(i) #printd((clientsocket, address))
+			self.connections_list.append(clientsocket)
+			print str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname()) #print (clientsocket, address)
 			i += 1
 
-		#printd("Server is setup for " + str(self.idnum))
+		print "Server is setup for " + str(self.idnum)
 
 
 	def add_msg_to_chat_log (self, msg):
@@ -109,15 +107,13 @@ class Replica():
 
 
 	def send_message (self, msg):
-		printd("Len of socket list is " +str(len(self.socket_connections_list)))
-		Messenger.broadcast_message(self.socket_connections_list, msg)
+		print "Len of socket list is " +str(len(sconnections_list))
+		Messenger.broadcast_message(self.connections_list, msg)
 
 
 	def wait_for_message (self):
 		while 1: # Should just continue to wait for messages
-			l = [x.getsockname() for x in self.client_connections_list]
-			printd(str(self.serversocket.getsockname())+" Waiting in select" + str(l))
-			rd, wd, ed = select.select(self.client_connections_list,              [], [])
+			rd, wd, ed = select.select(self.connections_list, [], [])
 
 			# Handle received messages
 			for s in rd:
