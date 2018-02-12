@@ -62,11 +62,20 @@ class Replica():
 		
 		self.acceptor.set_socket_list(self.connections_list)
 
-		if self.proposer:
-			self.proposer.send_iamleader_message(str(self.idnum))
-
 		t1 = threading.Thread(target=self.wait_for_message)
 		t1.start()
+
+		if self.proposer:
+			self.proposer.send_iamleader_message(str(self.idnum))
+			while self.proposer.am_leader == False:
+				pass	
+			self.proposer.value = "default_2"
+			self.proposer.send_value(self.idnum, 1) # seq_number incread by 1
+			self.proposer.value = "default_3"
+			self.proposer.send_value(self.idnum, 2) # seq_number incread by 1
+			self.proposer.value = "default_4"
+			self.proposer.send_value(self.idnum, 3) # seq_number incread by 1
+
 		t1.join()
 
 
@@ -104,7 +113,7 @@ class Replica():
 	def add_msg_to_chat_log (self, msg):
 		self.chat_log.append(msg)
 		# TODO: just for debugging, later remove this
-		printd_chat_log()
+		print self.print_chat_log()
 
 
 	def add_proposer (self, proposer):
@@ -131,26 +140,27 @@ class Replica():
 		msg = Messenger.recv_message(socket)
 		cmd, info = msg.split(":",1)
 		args = info.split(",")
-		printd("cmd = {}, info={}".format(MessageType(cmd).name, info))
+		printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
 		if cmd == MessageType.REQUEST.value:
 			# from: Client
 			# to:   Proposer
-			# args: value
-			self.proposer.acceptRequest(args[0], socket)
-			printd("Received request message")
+			# args: idnum, value
+			# TODO: THIS HAS NOT BEEN TESTED
+			self.proposer.acceptRequest(self.idnum, args[0]) 
+			#printd("Received request message")
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
 			# args: leader idnum
 			self.acceptor.acceptLeader(args[0], socket)
-			printd("Received I am Leader message")
+			#printd("Received I am Leader message")
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
 			# args: seq_number, current value
-			printd("Received You are Leader message")
+			#printd("Received You are Leader message")
 			if self.proposer: # should only get a message if you have a proposer but just in case
-				if args[1] == 'None':
+				if args[1] != 'None':
 					printd("Setting proposer value to prev value " + str(args[1]))
 					self.proposer.value = args[1]
 
@@ -163,17 +173,21 @@ class Replica():
 			# to:   Acceptor
 			# args: leaderNum, seqNum, value
 			self.acceptor.acceptValue(args[0], args[1], args[2])
-			printd("Received command message")
+			#printd("Received command message")
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
 			# from: Acceptor
 			# to: Learner
 			# info: replica_id, sequence number, value
-			printd(str(self.idnum) + " sending accept message to learner")
-			self.learner.acceptValue(args[0], args[1], args[2]) 
+			#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
+			accepted = self.learner.acceptValue(args[0], args[1], args[2]) 
+			if accepted == True:
+				self.add_msg_to_chat_log(args[2])
+			else:
+				pass
 		else:
 			printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))
 
 
 	def print_chat_log (self):
-		print('\n'.join(self.chat_log))
+		return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))

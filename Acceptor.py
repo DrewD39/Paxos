@@ -22,7 +22,7 @@ class Acceptor:
 	def acceptLeader (self, newLeaderID, socket):
 		outMsg = str(self.accepted_seqNum) + "," + str(self.accepted_value)
 		full_msg = MessageType.YOU_ARE_LEADER.value + ":" + outMsg
-		printd("msg sent by acceptLeader: " + full_msg)
+		#printd("msg sent by acceptLeader: " + full_msg)
 		self.selected_leader = newLeaderID
 		printd("Replica accepts leader #{}".format(newLeaderID))
 		Messenger.send_message (socket, full_msg)

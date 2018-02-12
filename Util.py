@@ -34,4 +34,5 @@ class Config:
 					.format(self.tolerated_faults, [', '.join(x) for x in self.server_pairs], self.parameters)
 
 def printd (msg):
+	#pass
 	logging.debug(str(msg))
