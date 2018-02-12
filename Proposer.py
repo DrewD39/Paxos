@@ -23,6 +23,7 @@ class Proposer:
 	def acceptRequest(value, socket):
 		## if I have majority of followers
 		#### broadcast seqNum, command
+		pass
 
 	def send_iamleader_message(self, msg):
 		# msg should be process id

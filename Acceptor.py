@@ -25,8 +25,8 @@ class Acceptor:
 		printd("Replica accepts leader #{}".format(newLeaderID))
 		Messenger.send_message (socket, full_msg)
 
-	def acceptValue(leaderID, seqNum, value, socket): # leaderNum, value, socket
-		if leaderID == self.accepted_leader:
+	def acceptValue(self, leaderID, seqNum, value, socket): # leaderNum, value, socket
+		if leaderID == self.selected_leader:
 			self.accepted_value = value
-			full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(self.idnum,seqNum,value)
+			full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(leaderID,seqNum,value)
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
