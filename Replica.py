@@ -85,6 +85,7 @@ class Replica():
 		# socket connections list should now be set up
 		if self.proposer:
 			self.proposer.set_socket_list(self.connections_list)
+		self.acceptor.set_socket_list(self.connections_list)
 
 		print str(len(replicas)) + " connections setup for " + str(self.idnum)
 
@@ -132,21 +133,21 @@ class Replica():
 		args = info.split(",")
 		printd("cmd = {}, info={}".format(MessageType(cmd).name, info))
 		if cmd == MessageType.REQUEST.value:
-			# Proposer should now propose here
 			# from: Client
-			# to: Acceptors
-			# info: value
+			# to:   Proposer
+			# args: value
+			self.proposer.acceptRequest(args[0], socket)
 			printd("Received request message")
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
-			# info: leader idnum
+			# args: leader idnum
 			self.acceptor.acceptLeader(args[0], socket)
 			printd("Received I am Leader message")
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
-			# info: seq_number, current value
+			# args: seq_number, current value
 			printd("Received You are Leader message")
 			if self.proposer:
 				if args[1] == 'None':
@@ -157,7 +158,11 @@ class Replica():
 				seq_number = 1 # TODO: actually get sequence number
 				self.proposer.send_value(self.idnum, seq_number) 
 		elif cmd == MessageType.COMMAND.value:
-			# proposer should now send message
+			# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
+			# from: Proposer
+			# to:   Acceptor
+			# args: leaderNum, seqNum, value
+			self.acceptor.acceptValue(args[0], args[1], args[2], socket)
 			printd("Received command message")
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
