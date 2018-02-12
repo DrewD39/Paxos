@@ -31,7 +31,7 @@ class Proposer:
 	def acceptRequest(self, idnum, value):
 		## if I have majority of followers
 		#### broadcast seqNum, command
-		if self.numb_followers >= self.majority_numb:
+		if self.am_leader == False:
 			self.value = value
 			self.seq_number += 1
 			full_msg = str(MessageType.COMMAND.value) + ":" + str(idnum) + "," + str(self.seq_number) + "," + str(self.value)
@@ -55,13 +55,14 @@ class Proposer:
 
 	def send_value (self, idnum, seq_number):
 		int_seq_number = int(seq_number)
-		if self.numb_followers >= self.majority_numb and self.broadcasted_for_seq_number[int_seq_number] == False:
+		if self.numb_followers >= self.majority_numb:
 			self.am_leader = True
-			full_msg = str(MessageType.COMMAND.value) + ":" + str(idnum) + "," + str(seq_number) + "," + str(self.value)
-			if self.socket_connections_list:
-				Messenger.broadcast_message(self.socket_connections_list, full_msg)
-			else:
-				print "Socket connections list has not been initialized for the proposer"
-			self.broadcasted_for_seq_number[int_seq_number] = True
+			if  self.broadcasted_for_seq_number[int_seq_number] == False:
+				full_msg = str(MessageType.COMMAND.value) + ":" + str(idnum) + "," + str(seq_number) + "," + str(self.value)
+				if self.socket_connections_list:
+					Messenger.broadcast_message(self.socket_connections_list, full_msg)
+				else:
+					print "Socket connections list has not been initialized for the proposer"
+				self.broadcasted_for_seq_number[int_seq_number] = True
 		else:
 			printd("Waiting for majority: " + str(self.numb_followers < self.majority_numb) + ", already_processed: " + str(self.broadcasted_for_seq_number[int_seq_number]) + ", seq_number is: " + str(seq_number))

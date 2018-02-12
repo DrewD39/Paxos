@@ -17,12 +17,8 @@ from Util import printd
 	for implementing Paxos
 '''
 
-# With synchrony for now...
-lock = threading.Lock()
-
 class Replica():
 
-	#idCounter = 0 # Increment id for each new replica
 
 	def __init__ (self, idnum, ip, port, server_pairs, proposer=False):
 		self.chat_log = [] # List of strings for each message
@@ -32,7 +28,7 @@ class Replica():
 		#self.idnum = Replica.idCounter # id for each replica (from 0-2f)
 		#Replica.idCounter += 1
 
-		majority = (len(server_pairs) // 2) + 1
+		majority = (len(server_pairs) // 2) + 1 # interger division rounds down, so add one
 
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
@@ -40,7 +36,7 @@ class Replica():
 		self.learner = Learner.Learner(majority)
 
 		if proposer:
-			self.proposer = Proposer.Proposer(majority) # interger division rounds down, so add one
+			self.proposer = Proposer.Proposer(majority)
 		else:
 			self.proposer = None # Only one proposer at a time
 
@@ -75,14 +71,12 @@ class Replica():
 		t3.start()
 
 		if self.proposer:
-			#lock.acquire()	# With synchrony for now... unlock is after learner accepts values
 			self.proposer.send_iamleader_message(str(self.idnum))
-			#lock.acquire()
-			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_2") 
-			#lock.acquire()
-			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_3")
-			#lock.acquire()
-			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_4")
+			while self.proposer.am_leader == False:
+				pass
+			self.proposer.acceptRequest(self.idnum, "default_2")
+			self.proposer.acceptRequest(self.idnum, "default_3")
+			self.proposer.acceptRequest(self.idnum, "default_4")
 
 		t2.join()
 
@@ -199,8 +193,6 @@ class Replica():
 			accepted = self.learner.acceptValue(args[0], args[1], args[2])
 			if accepted == True:
 				self.add_msg_to_chat_log(args[2])
-				#if self.proposer:
-				#	lock.release()
 			else:
 				pass
 		else:
