@@ -8,6 +8,7 @@ import threading
 import time
 import copy
 import select
+import Learner
 from Util import printd
 
 '''
@@ -27,12 +28,15 @@ class Replica():
 		#self.idnum = Replica.idCounter # id for each replica (from 0-2f)
 		#Replica.idCounter += 1
 
+		majority = (len(server_pairs) / 2) + 1
+
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
 		self.acceptor = Acceptor.Acceptor()
-		# TODO: self.learner = Learner()
+		self.learner = Learner.Learner(majority)
+		
 		if proposer:
-			self.proposer = Proposer.Proposer()
+			self.proposer = Proposer.Proposer(majority) # interger division rounds down, so add one
 		else:
 			self.proposer = None # Only one proposer at a time
 
@@ -126,33 +130,42 @@ class Replica():
 		msg = Messenger.recv_message(socket)
 		cmd, info = msg.split(":",1)
 		args = info.split(",")
-		printd("cmd = {}".format(cmd))
-		printd("info = {}".format(info))
+		printd("cmd = {}, info={}".format(MessageType(cmd).name, info))
 		if cmd == MessageType.REQUEST.value:
 			# Proposer should now propose here
+			# from: Client
+			# to: Acceptors
+			# info: value
 			printd("Received request message")
-			pass
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
 			# info: leader idnum
 			self.acceptor.acceptLeader(args[0], socket)
 			printd("Received I am Leader message")
-			pass
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
-			# info: current value, previous leader
+			# info: seq_number, current value
 			printd("Received You are Leader message")
-			pass
+			if self.proposer:
+				if args[1] == 'None':
+					printd("Setting proposer value to prev value " + str(args[1]))
+					self.proposer.value = args[1]
+
+				self.proposer.numb_followers += 1 # We have another follower who's joined us
+				seq_number = 1 # TODO: actually get sequence number
+				self.proposer.send_value(self.idnum, seq_number) 
 		elif cmd == MessageType.COMMAND.value:
 			# proposer should now send message
 			printd("Received command message")
-			pass
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
-			printd("Received accept message")
-			pass
+			# from: Acceptor
+			# to: Learner
+			# info: replica_id, sequence number, value
+			printd("Received accept message to learner")
+			self.learner.acceptValue(args[0], args[1], args[2]) 
 		else:
 			printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))
 
