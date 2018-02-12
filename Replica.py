@@ -28,7 +28,7 @@ class Replica():
 		#self.idnum = Replica.idCounter # id for each replica (from 0-2f)
 		#Replica.idCounter += 1
 
-		majority = (len(server_pairs) / 2) + 1
+		majority = (len(server_pairs) // 2) + 1
 
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
@@ -56,12 +56,17 @@ class Replica():
 
 		t1.join() # Wait for all connections to be established
 
-		t1 = threading.Thread(target=self.wait_for_message)
-		t1.start()
+		# socket connections list should now be set up
+		if self.proposer:
+			self.proposer.set_socket_list(self.connections_list)
+		
+		self.acceptor.set_socket_list(self.connections_list)
 
 		if self.proposer:
 			self.proposer.send_iamleader_message(str(self.idnum))
 
+		t1 = threading.Thread(target=self.wait_for_message)
+		t1.start()
 		t1.join()
 
 
@@ -79,15 +84,10 @@ class Replica():
 			    except Exception as e:
 			    	time.sleep(0) # yield thread
 
-			print str(self.idnum) + " Successfuly connected on (ip, port) " + str(replica)
+			printd(str(self.idnum) + " Successfuly connected on (ip, port) " + str(replica))
 			self.connections_list.append(s)
 
-		# socket connections list should now be set up
-		if self.proposer:
-			self.proposer.set_socket_list(self.connections_list)
-		self.acceptor.set_socket_list(self.connections_list)
-
-		print str(len(replicas)) + " connections setup for " + str(self.idnum)
+		printd(str(len(replicas)) + " connections setup for " + str(self.idnum))
 
 
 	def setup_server (self, numb_replicas):
@@ -95,10 +95,10 @@ class Replica():
 		while i < numb_replicas: # We know we should accept connections from all other replicas
 			(clientsocket, address) = self.serversocket.accept()
 			self.connections_list.append(clientsocket)
-			print str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname()) #print (clientsocket, address)
+			printd(str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname())) #print (clientsocket, address)
 			i += 1
 
-		print "Server is setup for " + str(self.idnum)
+		printd("Server is setup for " + str(self.idnum))
 
 
 	def add_msg_to_chat_log (self, msg):
@@ -112,7 +112,7 @@ class Replica():
 
 
 	def send_message (self, msg):
-		print "Len of socket list is " +str(len(sconnections_list))
+		printd("Len of socket list is " +str(len(sconnections_list)))
 		Messenger.broadcast_message(self.connections_list, msg)
 
 
@@ -149,27 +149,27 @@ class Replica():
 			# to:   Proposer
 			# args: seq_number, current value
 			printd("Received You are Leader message")
-			if self.proposer:
+			if self.proposer: # should only get a message if you have a proposer but just in case
 				if args[1] == 'None':
 					printd("Setting proposer value to prev value " + str(args[1]))
 					self.proposer.value = args[1]
 
 				self.proposer.numb_followers += 1 # We have another follower who's joined us
-				seq_number = 1 # TODO: actually get sequence number
+				seq_number = 0 # TODO: actually get sequence number
 				self.proposer.send_value(self.idnum, seq_number) 
 		elif cmd == MessageType.COMMAND.value:
 			# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
 			# from: Proposer
 			# to:   Acceptor
 			# args: leaderNum, seqNum, value
-			self.acceptor.acceptValue(args[0], args[1], args[2], socket)
+			self.acceptor.acceptValue(args[0], args[1], args[2])
 			printd("Received command message")
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
 			# from: Acceptor
 			# to: Learner
 			# info: replica_id, sequence number, value
-			printd("Received accept message to learner")
+			printd(str(self.idnum) + " sending accept message to learner")
 			self.learner.acceptValue(args[0], args[1], args[2]) 
 		else:
 			printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))

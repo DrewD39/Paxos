@@ -14,16 +14,19 @@ class Proposer:
 		self.value = "default_value"
 		self.am_leader = False
 		self.majority_numb = majority_numb
-		self.numb_followers = 0
+		# I think this can be equal to one since we can count ourselves
+		self.numb_followers = 1
 
 
 	def set_socket_list (self, socket_connections_list):
 		self.socket_connections_list = socket_connections_list
 
+
 	def acceptRequest(value, socket):
 		## if I have majority of followers
 		#### broadcast seqNum, command
 		pass
+
 
 	def send_iamleader_message(self, msg):
 		# msg should be process id
@@ -32,6 +35,7 @@ class Proposer:
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
 		else:
 			print "Socket connections list has not been initialized the proposer"
+
 
 	def send_value (self, idnum, seq_number):
 		if self.numb_followers >= self.majority_numb:

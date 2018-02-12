@@ -14,8 +14,10 @@ class Acceptor:
 		self.accepted_value = None # Last seen value that was proposed
 		self.socket_connections_list = None
 
+
 	def set_socket_list (self, socket_connections_list):
 		self.socket_connections_list = socket_connections_list
+
 
 	def acceptLeader (self, newLeaderID, socket):
 		outMsg = str(self.accepted_seqNum) + "," + str(self.accepted_value)
@@ -25,7 +27,8 @@ class Acceptor:
 		printd("Replica accepts leader #{}".format(newLeaderID))
 		Messenger.send_message (socket, full_msg)
 
-	def acceptValue(self, leaderID, seqNum, value, socket): # leaderNum, value, socket
+
+	def acceptValue(self, leaderID, seqNum, value): # leaderNum, value
 		if leaderID == self.selected_leader:
 			self.accepted_value = value
 			full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(leaderID,seqNum,value)

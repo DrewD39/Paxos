@@ -10,8 +10,6 @@ class MessageType(Enum):
 	COMMAND = "4"
 	ACCEPT = "5"
 
-MSGLEN = len("1: hello mate")
-
 def send_header (socket, msg_size):
 	#print "Sending header " + str(msg_size)
 	msg = '%8s'%msg_size
@@ -19,10 +17,12 @@ def send_header (socket, msg_size):
 	if sent == 0:
 		raise RuntimeError("Send header failed")
 
+
 def recv_header (socket):
 	msg_size = socket.recv(8)
 	#print "Received " + str(msg_size)
 	return int(msg_size)
+
 
 # recv message on socket
 # return message
