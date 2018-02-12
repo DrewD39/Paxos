@@ -17,6 +17,9 @@ class Proposer:
 	def set_socket_list (self, socket_connections_list):
 		self.socket_connections_list = socket_connections_list
 
+	def acceptRequest(value, socket):
+		## if I have majority of followers
+		#### broadcast seqNum, command
 
 	def send_iamleader_message(self, msg):
 		# msg should be process id
