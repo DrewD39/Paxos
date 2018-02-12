@@ -8,6 +8,7 @@ import threading
 import time
 import copy
 import select
+import sys
 import Learner
 from Util import printd
 
@@ -15,6 +16,9 @@ from Util import printd
 	Each replica will have an acceptor and a learner service associated with it
 	for implementing Paxos
 '''
+
+# With synchrony for now...
+lock = threading.Lock()
 
 class Replica():
 
@@ -34,7 +38,7 @@ class Replica():
 
 		self.acceptor = Acceptor.Acceptor()
 		self.learner = Learner.Learner(majority)
-		
+
 		if proposer:
 			self.proposer = Proposer.Proposer(majority) # interger division rounds down, so add one
 		else:
@@ -48,7 +52,7 @@ class Replica():
 		self.serversocket.bind(('', self.port)) # Set up server socket to receive and send messages
 		self.serversocket.listen(5)
 
-		self.connections_list = [] # List of sockets to clients
+		self.connections_list = [] # List of sockets to other replicas
 		t1 = threading.Thread(target=self.setup_server, args=(len(self.other_replicas[int(self.idnum):]),))
 		t1.start()
 
@@ -59,29 +63,41 @@ class Replica():
 		# socket connections list should now be set up
 		if self.proposer:
 			self.proposer.set_socket_list(self.connections_list)
-		
+
 		self.acceptor.set_socket_list(self.connections_list)
 
-		t1 = threading.Thread(target=self.wait_for_message)
-		t1.start()
+		# Here we will start two threads, one to wait for messages from replicas and one to wait
+		# for connections from clients
+		t2 = threading.Thread(target=self.wait_for_message)
+		t3 = threading.Thread(target=self.wait_for_client_connections)
+
+		t2.start()
+		t3.start()
 
 		if self.proposer:
+			#lock.acquire()	# With synchrony for now... unlock is after learner accepts values
 			self.proposer.send_iamleader_message(str(self.idnum))
-			while self.proposer.am_leader == False:
-				pass	
-			self.proposer.value = "default_2"
-			self.proposer.send_value(self.idnum, 1) # seq_number incread by 1
-			self.proposer.value = "default_3"
-			self.proposer.send_value(self.idnum, 2) # seq_number incread by 1
-			self.proposer.value = "default_4"
-			self.proposer.send_value(self.idnum, 3) # seq_number incread by 1
+			#lock.acquire()
+			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_2") 
+			#lock.acquire()
+			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_3")
+			#lock.acquire()
+			self.proposer.acceptRequest(self.idnum, str(self.idnum), "default_4")
 
-		t1.join()
+		t2.join()
+
+
+	def wait_for_client_connections (self):
+		while 1:
+			(clientsock, address) = self.serversocket.accept()
+			printd("Accept new client on socket " + str(clientsock.getsockname()))
+			self.clientsocket = clientsock # There should only be one client socket
+			self.connections_list.append(clientsock)
 
 
 	def connect_to_replicas (self, replicas):
 		i = 0
-		print str(self.idnum) + " will connect to " + str(replicas)
+		printd(str(self.idnum) + " will connect to " + str(replicas))
 		for replica in replicas:
 			connected = False
 			while not connected:
@@ -93,7 +109,7 @@ class Replica():
 			    except Exception as e:
 			    	time.sleep(0) # yield thread
 
-			printd(str(self.idnum) + " Successfuly connected on (ip, port) " + str(replica))
+			printd(str(self.idnum) + " successfuly connected on (ip, port) " + str(replica))
 			self.connections_list.append(s)
 
 		printd(str(len(replicas)) + " connections setup for " + str(self.idnum))
@@ -113,16 +129,16 @@ class Replica():
 	def add_msg_to_chat_log (self, msg):
 		self.chat_log.append(msg)
 		# TODO: just for debugging, later remove this
-		print self.print_chat_log()
+		print self.get_chat_log()
+
+		# I want to open a file a single time but I'm not sure how to ensure we close it at the end
+		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
+		self.file_log.write(self.get_chat_log() + "\n")
+		self.file_log.close()
 
 
 	def add_proposer (self, proposer):
 		self.proposer = proposer
-
-
-	def send_message (self, msg):
-		printd("Len of socket list is " +str(len(sconnections_list)))
-		Messenger.broadcast_message(self.connections_list, msg)
 
 
 	def wait_for_message (self):
@@ -131,13 +147,13 @@ class Replica():
 
 			# Handle received messages
 			for s in rd:
-				#Messenger.recv_header(s)
 				self.recv_message(s)
 				#printd(s)
 
 
 	def recv_message (self, socket):
 		msg = Messenger.recv_message(socket)
+		#printd("Message is " + str(msg))
 		cmd, info = msg.split(":",1)
 		args = info.split(",")
 		printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
@@ -146,8 +162,8 @@ class Replica():
 			# to:   Proposer
 			# args: idnum, value
 			# TODO: THIS HAS NOT BEEN TESTED
-			self.proposer.acceptRequest(self.idnum, args[0]) 
-			#printd("Received request message")
+			self.proposer.acceptRequest(self.idnum, args[0])
+			# printd("Received request message")
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
@@ -166,7 +182,7 @@ class Replica():
 
 				self.proposer.numb_followers += 1 # We have another follower who's joined us
 				seq_number = 0 # TODO: actually get sequence number
-				self.proposer.send_value(self.idnum, seq_number) 
+				self.proposer.send_value(self.idnum, seq_number)
 		elif cmd == MessageType.COMMAND.value:
 			# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
 			# from: Proposer
@@ -180,14 +196,16 @@ class Replica():
 			# to: Learner
 			# info: replica_id, sequence number, value
 			#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
-			accepted = self.learner.acceptValue(args[0], args[1], args[2]) 
+			accepted = self.learner.acceptValue(args[0], args[1], args[2])
 			if accepted == True:
 				self.add_msg_to_chat_log(args[2])
+				#if self.proposer:
+				#	lock.release()
 			else:
 				pass
 		else:
 			printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))
 
 
-	def print_chat_log (self):
+	def get_chat_log (self):
 		return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))

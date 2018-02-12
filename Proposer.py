@@ -28,15 +28,20 @@ class Proposer:
 		self.socket_connections_list = socket_connections_list
 
 
-	def acceptRequest(idnum, value):
+	def acceptRequest(self, idnum, value):
 		## if I have majority of followers
 		#### broadcast seqNum, command
-		full_msg = str(MessageType.COMMAND.value) + ":" + str(idnum) + "," + str(self.seq_number) + "," + str(self.value)
-
 		if self.numb_followers >= self.majority_numb:
-			Messenger.broadcast(self.socket_connections_list, full_msg)
+			self.value = value
+			self.seq_number += 1
+			full_msg = str(MessageType.COMMAND.value) + ":" + str(idnum) + "," + str(self.seq_number) + "," + str(self.value)
+
+			Messenger.broadcast_message(self.socket_connections_list, full_msg)
+			printd("Request accepted on replica " + str(idnum))
+
 		else: # We're not yet the leader so we should request to be leader
-			self.send_iamleader_message(str(self.idnum)) 
+			self.send_iamleader_message(str(idnum))
+			printd("Request denied because we're not the leader yet on replica " + str(idnum))
 
 
 	def send_iamleader_message(self, msg):
@@ -59,5 +64,4 @@ class Proposer:
 				print "Socket connections list has not been initialized for the proposer"
 			self.broadcasted_for_seq_number[int_seq_number] = True
 		else:
-			printd("Waiting for majority, only have received " + str(self.numb_followers) + " acceptances of leadership and seq_number is " + str(seq_number))
-
+			printd("Waiting for majority: " + str(self.numb_followers < self.majority_numb) + ", already_processed: " + str(self.broadcasted_for_seq_number[int_seq_number]) + ", seq_number is: " + str(seq_number))

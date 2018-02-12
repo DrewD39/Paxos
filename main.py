@@ -3,6 +3,7 @@ import argparse
 from Util import Config
 from Replica import Replica
 from multiprocessing import Process
+from Client import Client
 
 if __name__ == "__main__":
 
@@ -24,12 +25,6 @@ if __name__ == "__main__":
 	print config
 	total_processes = 2 * int(config.tolerated_faults) + 1 # 2f + 1
 
-	for i, pair in enumerate(config.server_pairs):
-		p = Process(target=Replica, args=(i, pair[0], pair[1], config.server_pairs, True,))
-		p.start()
-
-	#p.join()
-
 	for idnum, pair in enumerate(config.server_pairs):
 		if idnum == 0: # Create a single proposer with replica 0 as the primary
 			replica = Replica(idnum, pair[0], pair[1], config.server_pairs, proposer=True)
@@ -38,3 +33,10 @@ if __name__ == "__main__":
 
 		p = Process(target=replica.start_replica)
 		p.start()
+
+	# And now we should run the client
+	client = Client (config.server_pairs)
+	#client.connect_to_proposer(0) # Always start with replica 0 as the proposer
+	for i in range(0, 10000000): # delay for synchrony
+		pass
+	#client.send_message("client_message")

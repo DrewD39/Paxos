@@ -4,7 +4,8 @@ import Messenger
 from Messenger import MessageType
 from Util import printd
 '''
-
+	This class is responsible for accepting values and leadership proposals from proposers and
+	then passing these values to learners
 '''
 class Acceptor:
 
@@ -33,3 +34,5 @@ class Acceptor:
 			self.accepted_value = value
 			full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(leaderID,seqNum,value)
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
+		else:
+			printd("Acceptor has not selected leader yet")

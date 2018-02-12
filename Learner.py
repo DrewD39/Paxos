@@ -12,8 +12,8 @@ class Learner:
 
 	def __init__ (self, majority_numb):
 		self.majority_numb = majority_numb
-		# I think this should be equal to 1 since we can count ourselves
-		self.values_list = self.seq_list_size * [1] 
+		# I think this should be equal to 1 since we can count ourselves in the majority
+		self.values_list = self.seq_list_size * [1]
 
 
 	def acceptValue (self, replicaID, seq_number, value):
@@ -24,7 +24,7 @@ class Learner:
 			printd(str(replicaID) + " executes commands for seq number " + str(seq_number))
 			# We shouldn't execute again for this seq_number, and since we've already received
 			# a majority, we're guaranteed to not receive a majority again
-			self.values_list[int_seq_number] = 0 
+			self.values_list[int_seq_number] = 0
 			return True
 		else:
 			return False

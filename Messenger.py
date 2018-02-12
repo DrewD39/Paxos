@@ -36,8 +36,9 @@ def recv_message (socket):
 
 # Send a single message
 def send_message (socket, msg):
-	send_header(socket, len(msg))
-	sent = socket.send(msg)
+	header = '%8s' % len(msg)
+	#send_header(socket, len(msg))
+	sent = socket.send(header + msg)
 	#printd("socket {} sent msg: {} to: {}".format(socket.getsockname(),msg, socket.getpeername()))
 	if sent == 0:
 			raise RuntimeError("Send message failed")

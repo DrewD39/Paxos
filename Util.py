@@ -1,5 +1,9 @@
 import logging, sys
+import threading
+
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+lock = threading.Lock()
 
 class Config:
 
@@ -35,4 +39,6 @@ class Config:
 
 def printd (msg):
 	#pass
+	lock.acquire()
 	logging.debug(str(msg))
+	lock.release()
