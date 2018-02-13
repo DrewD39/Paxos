@@ -2,8 +2,9 @@
 import argparse
 from Util import Config
 from Replica import Replica
-from multiprocessing import Process
+from multiprocessing import Process, Semaphore
 from Client import Client
+# from chatterbot import ChatBot for later
 
 if __name__ == "__main__":
 
@@ -23,20 +24,42 @@ if __name__ == "__main__":
 		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005)", None)
 
 	print config
+
+	# Set up fun chat bot TODO: for later
+	'''chatbot = ChatBot(
+    	'Ron Obvious',
+    	trainer='chatterbot.trainers.ChatterBotCorpusTrainer'
+	)
+
+	# Train based on the english corpus
+	chatbot.train("chatterbot.corpus.english")'''
+
 	total_processes = 2 * int(config.tolerated_faults) + 1 # 2f + 1
+
+	semaphore = Semaphore(0)
 
 	for idnum, pair in enumerate(config.server_pairs):
 		if idnum == 0: # Create a single proposer with replica 0 as the primary
-			replica = Replica(idnum, pair[0], pair[1], config.server_pairs, proposer=True)
+			has_proposer = True
 		else:
-			replica = Replica(idnum, pair[0], pair[1], config.server_pairs, proposer=False)
+			has_proposer = False
+
+		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, proposer=has_proposer)
 
 		p = Process(target=replica.start_replica)
 		p.start()
 
+	# After starting all processes, we should wait for them all to connect to each other
+	# before sending any messages
+	for i in range(0, len(config.server_pairs)):
+		semaphore.acquire()
+
 	# And now we should run the client
 	client = Client (config.server_pairs)
-	#client.connect_to_proposer(0) # Always start with replica 0 as the proposer
-	for i in range(0, 10000000): # delay for synchrony
-		pass
-	#client.send_message("client_message")
+	client.connect_to_proposer(0) # Always start with replica 0 as the proposer
+
+	msg = "Hello how are you today?"
+	for i in range(0, 10):
+		client.send_message("0", str(i) + ":" + msg)
+		recvd_msg = str(client.recv_message())
+		#msg = str(chatbot.get_response(recvd_msg)) For later....

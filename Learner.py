@@ -28,4 +28,4 @@ class Learner:
 			return True
 		else:
 			return False
-			#printd("Don't have majority for learner yet...")
+			printd("Don't have majority for learner yet...")

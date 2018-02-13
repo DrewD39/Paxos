@@ -32,7 +32,11 @@ class Client:
         self.connection_socket = s
 
 
-    def send_message (self, value):
-        full_msg = str(MessageType.REQUEST.value) + ":" + value
+    def recv_message (self):
+        return Messenger.recv_message(self.connection_socket)
+
+
+    def send_message (self, seq_number, value):
+        full_msg = str(MessageType.REQUEST.value) + ":" + seq_number + "," + value
         Messenger.send_message(self.connection_socket, full_msg)
         printd("Client sent message with value " + str(value))

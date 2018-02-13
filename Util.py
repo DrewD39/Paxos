@@ -26,7 +26,7 @@ class Config:
 			self.server_pairs = self.__parse_pairs(server_info)
 			self.parameters = parameters
 
-		assert(len(self.server_pairs) == 2 * int(self.tolerated_faults) + 1) # 2f + 1
+		assert(len(self.server_pairs) >= 2 * int(self.tolerated_faults) + 1) # 2f + 1
 
 	def __parse_pairs (self, line):
 		parsed_line = [x.strip('( )') for x in line.split(',')]

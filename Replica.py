@@ -20,13 +20,15 @@ from Util import printd
 class Replica():
 
 
-	def __init__ (self, idnum, ip, port, server_pairs, proposer=False):
+	number_of_clients = 100
+
+
+	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
 		self.chat_log = [] # List of strings for each message
 		self.idnum = idnum
 		self.ip = ip
 		self.port = int(port)
-		#self.idnum = Replica.idCounter # id for each replica (from 0-2f)
-		#Replica.idCounter += 1
+		self.semaphore = semaphore # This semaphore is shared with all processes to wait till all connections are made
 
 		majority = (len(server_pairs) // 2) + 1 # interger division rounds down, so add one
 
@@ -39,6 +41,9 @@ class Replica():
 			self.proposer = Proposer.Proposer(majority)
 		else:
 			self.proposer = None # Only one proposer at a time
+
+		self.client_list = [socket.socket] * self.number_of_clients
+
 
 
 	def start_replica (self):
@@ -62,6 +67,8 @@ class Replica():
 
 		self.acceptor.set_socket_list(self.connections_list)
 
+		self.semaphore.release() # Tell the main process we're done setting up our connections
+
 		# Here we will start two threads, one to wait for messages from replicas and one to wait
 		# for connections from clients
 		t2 = threading.Thread(target=self.wait_for_message)
@@ -71,12 +78,13 @@ class Replica():
 		t3.start()
 
 		if self.proposer:
+			self.acceptor.selected_leader = self.idnum
 			self.proposer.send_iamleader_message(str(self.idnum))
-			while self.proposer.am_leader == False:
-				pass
-			self.proposer.acceptRequest(self.idnum, "default_2")
-			self.proposer.acceptRequest(self.idnum, "default_3")
-			self.proposer.acceptRequest(self.idnum, "default_4")
+			#while self.proposer.am_leader == False:
+			#	pass
+			#self.proposer.acceptRequest(self.idnum, "default_2")
+			#self.proposer.acceptRequest(self.idnum, "default_3")
+			#self.proposer.acceptRequest(self.idnum, "default_4")
 
 		t2.join()
 
@@ -85,9 +93,16 @@ class Replica():
 		while 1:
 			(clientsock, address) = self.serversocket.accept()
 			printd("Accept new client on socket " + str(clientsock.getsockname()))
-			self.clientsocket = clientsock # There should only be one client socket
-			self.connections_list.append(clientsock)
+			ct = threading.Thread(target=self.client_thread, args=(clientsock,))
+			ct.start()
 
+	def client_thread (self, clientsocket):
+		while 1: # Should just continue to wait for messages
+			rd, wd, ed = select.select([clientsocket], [], [])
+
+			# Handle received messages
+			for s in rd:
+				self.recv_message(s)
 
 	def connect_to_replicas (self, replicas):
 		i = 0
@@ -154,16 +169,16 @@ class Replica():
 		if cmd == MessageType.REQUEST.value:
 			# from: Client
 			# to:   Proposer
-			# args: idnum, value
-			# TODO: THIS HAS NOT BEEN TESTED
-			self.proposer.acceptRequest(self.idnum, args[0])
+			# args: seqnum, value
+			# TODO: THIS HAS NOT BEEN TESTE
+			self.client_list[int(args[0])] = socket # This is the client socket for this request
+			self.proposer.acceptRequest(self.idnum, args[1], self.acceptor)
 			# printd("Received request message")
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
 			# args: leader idnum
 			self.acceptor.acceptLeader(args[0], socket)
-			#printd("Received I am Leader message")
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
@@ -175,15 +190,20 @@ class Replica():
 					self.proposer.value = args[1]
 
 				self.proposer.numb_followers += 1 # We have another follower who's joined us
-				seq_number = 0 # TODO: actually get sequence number
-				self.proposer.send_value(self.idnum, seq_number)
+
+				leader = self.proposer.try_to_be_leader() # Check to see if we now have majority
+
+				if leader:
+					printd(str(self.idnum) + " is the leader!")
+				#seq_number = 0 # TODO: actually get sequence number
+				#self.proposer.send_value(self.idnum, seq_number)
 		elif cmd == MessageType.COMMAND.value:
 			# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
 			# from: Proposer
 			# to:   Acceptor
 			# args: leaderNum, seqNum, value
-			self.acceptor.acceptValue(args[0], args[1], args[2])
-			#printd("Received command message")
+			self.acceptor.accept_value(args[0], args[1], args[2])
+			printd("Received command message from replica id " + str(self.idnum) + " has leader id " + str(self.acceptor.selected_leader))
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
 			# from: Acceptor
@@ -193,6 +213,9 @@ class Replica():
 			accepted = self.learner.acceptValue(args[0], args[1], args[2])
 			if accepted == True:
 				self.add_msg_to_chat_log(args[2])
+				if self.proposer:
+					# TODO: This shouldn't be hardcoded for clientlist
+					self.proposer.reply_to_client(self.client_list[0], args[2])
 			else:
 				pass
 		else:

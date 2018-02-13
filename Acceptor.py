@@ -10,7 +10,7 @@ from Util import printd
 class Acceptor:
 
 	def __init__ (self):
-		self.selected_leader = None # Integer value for selected leader
+		self.selected_leader = -1 # Integer value for selected leader
 		self.accepted_seqNum = None # sequence number for the value
 		self.accepted_value = None # Last seen value that was proposed
 		self.socket_connections_list = None
@@ -29,10 +29,19 @@ class Acceptor:
 		Messenger.send_message (socket, full_msg)
 
 
-	def acceptValue(self, leaderID, seqNum, value): # leaderNum, value
+	def set_accept_value (self, leaderID, seqNum, value):
 		if leaderID == self.selected_leader:
 			self.accepted_value = value
+			self.accepted_seqNum = seqNum
+		else:
+			printd("Acceptor could not set accept value because leaderID = " + str(self.selected_leader))
+
+
+	def accept_value (self, leaderID, seqNum, value): # leaderNum, value
+		if leaderID == self.selected_leader:
+			self.accepted_value = value
+			self.accepted_seqNum = seqNum
 			full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(leaderID,seqNum,value)
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
 		else:
-			printd("Acceptor has not selected leader yet")
+			printd("Acceptor has not selected leader yet because leaderID = " + str(self.selected_leader))
