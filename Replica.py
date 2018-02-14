@@ -38,7 +38,7 @@ class Replica():
 		self.learner = Learner.Learner(majority)
 
 		if proposer:
-			self.proposer = Proposer.Proposer(majority)
+			self.proposer = Proposer.Proposer(self.idnum, majority)
 		else:
 			self.proposer = None # Only one proposer at a time
 
@@ -67,8 +67,6 @@ class Replica():
 
 		self.acceptor.set_socket_list(self.connections_list)
 
-		self.semaphore.release() # Tell the main process we're done setting up our connections
-
 		# Here we will start two threads, one to wait for messages from replicas and one to wait
 		# for connections from clients
 		t2 = threading.Thread(target=self.wait_for_message)
@@ -82,9 +80,10 @@ class Replica():
 			self.proposer.send_iamleader_message(str(self.idnum))
 			#while self.proposer.am_leader == False:
 			#	pass
-			#self.proposer.acceptRequest(self.idnum, "default_2")
-			#self.proposer.acceptRequest(self.idnum, "default_3")
-			#self.proposer.acceptRequest(self.idnum, "default_4")
+			#self.proposer.acceptRequest("default_2")
+			#self.proposer.acceptRequest("default_3")
+			#self.proposer.acceptRequest("default_4")
+			self.semaphore.release() # Tell the main process we're done setting up our connections
 
 		t2.join()
 
@@ -172,13 +171,14 @@ class Replica():
 			# args: seqnum, value
 			# TODO: THIS HAS NOT BEEN TESTE
 			self.client_list[int(args[0])] = socket # This is the client socket for this request
-			self.proposer.acceptRequest(self.idnum, args[1], self.acceptor)
+			self.proposer.acceptRequest(args[1], self.acceptor)
 			# printd("Received request message")
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
 			# args: leader idnum
 			self.acceptor.acceptLeader(args[0], socket)
+			self.semaphore.release() # Tell the main process we're done setting up our connections
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
@@ -191,9 +191,12 @@ class Replica():
 
 				self.proposer.numb_followers += 1 # We have another follower who's joined us
 
-				leader = self.proposer.try_to_be_leader() # Check to see if we now have majority
+				if not self.proposer.am_leader: # if not leader
+					# Check to see if we now have majority
+					# Update self.proposer.am_leader if needed
+					self.proposer.try_to_be_leader(self.acceptor)
 
-				if leader:
+				if self.proposer.am_leader:
 					printd(str(self.idnum) + " is the leader!")
 				#seq_number = 0 # TODO: actually get sequence number
 				#self.proposer.send_value(self.idnum, seq_number)
