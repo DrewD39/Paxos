@@ -36,9 +36,10 @@ class Replica():
 
 		self.acceptor = Acceptor.Acceptor()
 		self.learner = Learner.Learner(majority)
+		self.leaderNum = -1 # this is the leader number - NOT leader ID
 
 		if proposer:
-			self.proposer = Proposer.Proposer(self.idnum, majority)
+			self.proposer = Proposer.Proposer(self.idnum, majority, self.leaderNum)
 		else:
 			self.proposer = None # Only one proposer at a time
 
@@ -77,7 +78,7 @@ class Replica():
 
 		if self.proposer:
 			self.acceptor.selected_leader = self.idnum
-			self.proposer.send_iamleader_message(str(self.idnum))
+			self.proposer.send_iamleader_message()
 			#while self.proposer.am_leader == False:
 			#	pass
 			#self.proposer.acceptRequest("default_2")
@@ -176,7 +177,7 @@ class Replica():
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
-			# args: leader idnum
+			# args: leaderNum idnum
 			self.acceptor.acceptLeader(args[0], socket)
 			self.semaphore.release() # Tell the main process we're done setting up our connections
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
@@ -206,12 +207,12 @@ class Replica():
 			# to:   Acceptor
 			# args: leaderNum, seqNum, value
 			self.acceptor.accept_value(args[0], args[1], args[2])
-			printd("Received command message from replica id " + str(self.idnum) + " has leader id " + str(self.acceptor.selected_leader))
+			printd("Received command message from replica id " + str(self.idnum) + " has leader id " + str(self.acceptor.selected_leaderNum))
 		elif cmd == MessageType.ACCEPT.value:
 			# Acceptor should now send message
 			# from: Acceptor
 			# to: Learner
-			# info: replica_id, sequence number, value
+			# info: leaderNum, sequence number, value
 			#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 			accepted = self.learner.acceptValue(args[0], args[1], args[2])
 			if accepted == True:
