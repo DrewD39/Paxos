@@ -35,11 +35,11 @@ class Replica():
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
 		self.acceptor = Acceptor.Acceptor()
-		self.learner = Learner.Learner(majority)
+		self.learner = Learner.Learner(majority, self.idnum)
 		self.leaderNum = -1 # this is the leader number - NOT leader ID
 
 		if proposer:
-			self.proposer = Proposer.Proposer(self.idnum, majority, self.leaderNum)
+			self.proposer = Proposer.Proposer(self.idnum, majority, self.leaderNum, self.acceptor)
 		else:
 			self.proposer = None # Only one proposer at a time
 
@@ -183,24 +183,12 @@ class Replica():
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer
-			# args: seq_number, current value
+			# args: prev_leaderNum, seq_number, current value
 			#printd("Received You are Leader message")
-			if self.proposer: # should only get a message if you have a proposer but just in case
-				if args[1] != 'None':
-					printd("Setting proposer value to prev value " + str(args[1]))
-					self.proposer.value = args[1]
+			if not self.proposer:
+				raise RuntimeError("Non-proposer recieved YOU_ARE_LEADER msg")
+			self.proposer.newFollower(args[0], args[1], args[2])
 
-				self.proposer.numb_followers += 1 # We have another follower who's joined us
-
-				if not self.proposer.am_leader: # if not leader
-					# Check to see if we now have majority
-					# Update self.proposer.am_leader if needed
-					self.proposer.try_to_be_leader(self.acceptor)
-
-				if self.proposer.am_leader:
-					printd(str(self.idnum) + " is the leader!")
-				#seq_number = 0 # TODO: actually get sequence number
-				#self.proposer.send_value(self.idnum, seq_number)
 		elif cmd == MessageType.COMMAND.value:
 			# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
 			# from: Proposer
@@ -215,7 +203,7 @@ class Replica():
 			# info: leaderNum, sequence number, value
 			#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 			accepted = self.learner.acceptValue(args[0], args[1], args[2])
-			if accepted == True:
+			if accepted == True: # True == majority achieved; False == no majority
 				self.add_msg_to_chat_log(args[2])
 				if self.proposer:
 					# TODO: This shouldn't be hardcoded for clientlist

@@ -11,8 +11,8 @@ class Acceptor:
 
 	def __init__ (self):
 		self.selected_leaderNum = -1 # Integer value for selected leader
-		self.accepted_seqNum = None # sequence number for the value
-		self.accepted_lastVal = None # Last seen value that was proposed
+		self.accepted_seqNum = -1 # sequence number for the value
+		self.accepted_lastVal = -1 # Last seen value that was proposed
 		self.socket_connections_list = None
 
 
@@ -22,9 +22,9 @@ class Acceptor:
 
 	def acceptLeader (self, newLeaderNum, socket):
 		# send YOU_ARE_LEADER to proposer with seqNum, accepted_lastVal, and selected_leaderNum
-		msg =  str(self.accepted_seqNum)
+		msg =  str(self.selected_leaderNum)
 		msg += "," + str(self.accepted_lastVal)
-		msg += "," + str(self.selected_leaderNum)
+		msg += "," + str(self.accepted_seqNum)
 		full_msg = MessageType.YOU_ARE_LEADER.value + ":" + msg
 		#printd("msg sent by acceptLeader: " + full_msg)
 		self.selected_leaderNum = newLeaderNum
