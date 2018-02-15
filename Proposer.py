@@ -9,18 +9,15 @@ import Queue
 '''
 class Proposer:
 
-
-	seq_list_size = 10000
-
-
 	def __init__ (self, idnum, majority_numb):
-		self.value = "default_value"
+		#self.value = "default_value"
+		self.values_list = []
 		self.am_leader = False
 		self.majority_numb = majority_numb
 		# I think this can be equal to one since we can count ourselves
 		self.numb_followers = 1
 		self.seq_number = 0
-		self.broadcasted_for_seq_number = self.seq_list_size * [False]
+		#self.broadcasted_for_seq_number = self.seq_list_size * [False]
 		self.requests_before_leadership = Queue.Queue()
 		self.idnum = idnum
 
@@ -54,7 +51,7 @@ class Proposer:
 
 	def send_iamleader_message(self, msg):
 		# msg should be process id
-		full_msg = str(MessageType.I_AM_LEADER.value) + ":" + msg
+		full_msg = str(MessageType.I_AM_LEADER.value) + ":" + str(self.seq_number) + "," + msg
 		if self.socket_connections_list:
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
 		else:

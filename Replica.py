@@ -67,6 +67,8 @@ class Replica():
 
 		self.acceptor.set_socket_list(self.connections_list)
 
+		self.semaphore.release() # Tell the main process we're done setting up our connections
+
 		# Here we will start two threads, one to wait for messages from replicas and one to wait
 		# for connections from clients
 		t2 = threading.Thread(target=self.wait_for_message)
@@ -83,7 +85,6 @@ class Replica():
 			#self.proposer.acceptRequest("default_2")
 			#self.proposer.acceptRequest("default_3")
 			#self.proposer.acceptRequest("default_4")
-			self.semaphore.release() # Tell the main process we're done setting up our connections
 
 		t2.join()
 
@@ -168,7 +169,7 @@ class Replica():
 		if cmd == MessageType.REQUEST.value:
 			# from: Client
 			# to:   Proposer
-			# args: seqnum, value
+			# args: Client_seqnum, value
 			# TODO: THIS HAS NOT BEEN TESTE
 			self.client_list[int(args[0])] = socket # This is the client socket for this request
 			self.proposer.acceptRequest(args[1], self.acceptor)
@@ -176,9 +177,8 @@ class Replica():
 		elif cmd == MessageType.I_AM_LEADER.value:
 			# from: Proposer
 			# to:   Acceptor
-			# args: leader idnum
-			self.acceptor.acceptLeader(args[0], socket)
-			self.semaphore.release() # Tell the main process we're done setting up our connections
+			# args: seq_num, leader
+			self.acceptor.acceptLeader(args[0], args[1], socket)
 		elif cmd == MessageType.YOU_ARE_LEADER.value:
 			# from: Acceptor
 			# to:   Proposer

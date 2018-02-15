@@ -11,7 +11,7 @@ class Acceptor:
 
 	def __init__ (self):
 		self.selected_leader = -1 # Integer value for selected leader
-		self.accepted_seqNum = None # sequence number for the value
+		self.accepted_seqNum = -1 # sequence number for the value is initially none
 		self.accepted_value = None # Last seen value that was proposed
 		self.socket_connections_list = None
 
@@ -20,13 +20,15 @@ class Acceptor:
 		self.socket_connections_list = socket_connections_list
 
 
-	def acceptLeader (self, newLeaderID, socket):
-		outMsg = str(self.accepted_seqNum) + "," + str(self.accepted_value)
-		full_msg = MessageType.YOU_ARE_LEADER.value + ":" + outMsg
-		#printd("msg sent by acceptLeader: " + full_msg)
-		self.selected_leader = newLeaderID
-		printd("Replica accepts leader #{}".format(newLeaderID))
-		Messenger.send_message (socket, full_msg)
+	def acceptLeader (self, seq_number, newLeaderID, socket):
+		if seq_number >= self.accepted_seqNum: # Only accept this leader if their sequence number is higher than we've accepted
+			self.accepted_seqNum = seq_number
+			outMsg = str(self.accepted_seqNum) + "," + str(self.accepted_value)
+			full_msg = MessageType.YOU_ARE_LEADER.value + ":" + outMsg
+			#printd("msg sent by acceptLeader: " + full_msg)
+			self.selected_leader = newLeaderID
+			printd("Replica accepts leader #{}".format(newLeaderID))
+			Messenger.send_message (socket, full_msg)
 
 
 	def set_accept_value (self, leaderID, seqNum, value):
