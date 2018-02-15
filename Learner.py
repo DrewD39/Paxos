@@ -7,7 +7,7 @@ from Util import printd
 class Learner:
 
 
-	seq_list_size = 10
+	seq_list_size = 100
 
 
 	def __init__ (self, majority_numb, idnum):
@@ -28,5 +28,5 @@ class Learner:
 			self.values_list[int_seq_number] = 0
 			return True
 		else:
+			printd("Don't have majority for learner yet..., seq_number = " + seq_number + " and valeus_list = "  + str(self.values_list[int_seq_number]))
 			return False
-			printd("Don't have majority for learner yet...")

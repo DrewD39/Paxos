@@ -5,6 +5,7 @@ from Replica import Replica
 from multiprocessing import Process, Semaphore
 from Client import Client
 # from chatterbot import ChatBot for later
+import time
 
 if __name__ == "__main__":
 
@@ -37,7 +38,8 @@ if __name__ == "__main__":
 	total_processes = 2 * int(config.tolerated_faults) + 1 # 2f + 1
 
 	semaphore = Semaphore(0)
-
+	rep_0 = None
+	processes = []
 	for idnum, pair in enumerate(config.server_pairs):
 		if idnum == 0: # Create a single proposer with replica 0 as the primary
 			has_proposer = True
@@ -46,8 +48,8 @@ if __name__ == "__main__":
 
 		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, proposer=has_proposer)
 
-		p = Process(target=replica.start_replica)
-		p.start()
+		processes.append(Process(target=replica.start_replica))
+		processes[idnum].start()
 
 	# After starting all processes, we should wait for them all to connect to each other
 	# before sending any messages
@@ -56,10 +58,13 @@ if __name__ == "__main__":
 
 	# And now we should run the client
 	client = Client (config.server_pairs)
-	client.connect_to_proposer(0) # Always start with replica 0 as the proposer
+	client.connect_to_all_replicas() # Connect to all replicas even if they don't have a proposer yet
 
 	msg = "Hello how are you today?"
 	for i in range(0, 10):
-		client.send_message("0", str(i) + ":" + msg)
+		#msg = raw_input("What is your msg? ")
+		client.send_message(str(i) + ":" + msg)
+		#if i == 5:
+		#	time.sleep(6)
 		recvd_msg = str(client.recv_message())
 		#msg = str(chatbot.get_response(recvd_msg)) For later....
