@@ -9,6 +9,12 @@ class MessageType(Enum):
 	YOU_ARE_LEADER = "3"
 	COMMAND = "4"
 	ACCEPT = "5"
+	NACK = "6"
+
+
+def send_promise (socket, promise):
+	send_message (socket, str(promise))
+
 
 def send_header (aSocket, msg_size):
 	#print "Sending header " + str(msg_size)

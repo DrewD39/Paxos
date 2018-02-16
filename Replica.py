@@ -22,7 +22,7 @@ import Test
 
 class Replica():
 
-	timeout = 5 # value in seconds
+	timeout = 3 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
@@ -39,7 +39,6 @@ class Replica():
 
 		self.acceptor = Acceptor.Acceptor(self.idnum)
 		self.learner = Learner.Learner(self.majority, self.idnum)
-		self.leaderNum = 0 # this is the leader number - NOT leader ID
 		self.seq_number = 0
 
 		self.proposer = None
@@ -63,8 +62,9 @@ class Replica():
 		if self.idnum == 0: # Only one proposer at a time
 			self.initialize_proposer()
 			self.should_kill = True # Also we'll try killing the first leader
+		elif self.idnum == 1:
+			self.should_kill = True
 		else:
-			self.proposer = None
 			self.should_kill = False
 
 		self.acceptor.set_socket_list(self.connections_list)
@@ -84,7 +84,7 @@ class Replica():
 
 
 	def initialize_proposer (self):
-		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.leaderNum, self.acceptor, self.learner)
+		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.learner)
 		# socket connections list should now be set up
 		self.proposer.set_socket_list(self.connections_list)
 		self.proposer.send_iamleader_message()
@@ -103,7 +103,7 @@ class Replica():
 			rd, wd, ed = select.select(self.connections_list, [], [], self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
-				if int(self.acceptor.selected_leaderNum) == int(self.idnum): # If we're the next in line
+				if int(self.acceptor.selected_leaderNum) + 1 == int(self.idnum): # If we're the next in line
 					printd("Creating a new proposer on replica " + str(self.idnum))
 					self.initialize_proposer()
 
@@ -170,6 +170,7 @@ class Replica():
 			cmd, info = msg.split(":",1)
 			args = info.split(",")
 			printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
+
 			if cmd == MessageType.REQUEST.value:
 				# from: Client
 				# to:   Proposer
@@ -181,12 +182,13 @@ class Replica():
 
 				self.seq_number += 1
 				# printd("Received request message")
+
 			elif cmd == MessageType.I_AM_LEADER.value:
 				# from: Proposer
 				# to:   Acceptor
 				# args: leaderNum
-				self.leaderNum = int(args[0])
 				self.acceptor.acceptLeader(args[0], socket)
+
 			elif cmd == MessageType.YOU_ARE_LEADER.value:
 				# from: Acceptor
 				# to:   Proposer
@@ -204,6 +206,7 @@ class Replica():
 				# args: leaderNum, seqNum, value
 				self.acceptor.accept_value(args[0], args[1], args[2])
 				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum) - 1))
+
 			elif cmd == MessageType.ACCEPT.value:
 				# Acceptor should now send message
 				# from: Acceptor
@@ -220,6 +223,12 @@ class Replica():
 						if self.should_kill == True:
 							printd("Shutting down replica " + str(self.idnum))
 							self.active = False
+
+			elif cmd == MessageType.NACK.value:
+				# from: Acceptor
+				# to: Proposer
+				# info: highest_leader_num
+				self.proposer.set_leader_num(args[0])
 			else:
 				printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))
 

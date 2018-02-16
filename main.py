@@ -22,7 +22,7 @@ if __name__ == "__main__":
 	elif args.tolerated_faults and args.server_pairs and args.parameters: # from CL
 		config = Config(None, args.tolerated_faults, args.server_pairs, args.parameters)
 	else: # just use default values
-		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005)", None)
+		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007)", None)
 
 	print config
 

@@ -3,10 +3,12 @@ from enum import Enum
 import Messenger
 from Messenger import MessageType
 from Util import printd
+
 '''
 	This class is responsible for accepting values and leadership proposals from proposers and
 	then passing these values to learners
 '''
+
 class Acceptor:
 
 	def __init__ (self, idnum):
@@ -23,24 +25,26 @@ class Acceptor:
 
 	def acceptLeader (self, newLeaderNum, socket):
 		# send YOU_ARE_LEADER to proposer with seqNum, accepted_lastVal, and selected_leaderNum
-		self.selected_leaderNum = newLeaderNum
+		# We must only promise to follow leaders with leader numbers higher than our current leader
+		if int(newLeaderNum) > self.selected_leaderNum:
+			self.selected_leaderNum = int(newLeaderNum)
 
-		msg =  str(self.selected_leaderNum)
-		msg += "," + str(self.accepted_seqNum)
-		msg += "," + str(self.accepted_lastVal)
-		full_msg = MessageType.YOU_ARE_LEADER.value + ":" + msg
-		#printd("msg sent by acceptLeader: " + full_msg)
-		printd("Replica " + str(self.idnum) + " accepts leader number {}".format(newLeaderNum))
-	 	Messenger.send_message (socket, full_msg)
+			printd("Replica " + str(self.idnum) + " accepts leader number {}".format(newLeaderNum))
+			msg = "{}:{},{},{}".format(MessageType.YOU_ARE_LEADER.value, self.selected_leaderNum, self.accepted_seqNum, self.accepted_lastVal)
+		else:
+			msg = "{}:{}".format(MessageType.NACK.value, self.selected_leaderNum)
+			printd("Not a high enough leader id {} because our current id {}.".format(newLeaderNum, self.selected_leaderNum))
+
+		Messenger.send_message (socket, msg)
 
 
 	def accept_value (self, leaderNum, seqNum, value): # leaderNum, value
-		if leaderNum == self.selected_leaderNum:
+		if int(leaderNum) == self.selected_leaderNum:
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
 			self.send_value(leaderNum, seqNum, value)
 		else:
-			printd("Acceptor " + str(self.idnum) + " has not selected leader yet because leaderNum = " + str(self.selected_leaderNum))# + " and we received message from leader " + str(leaderNum)
+			printd("Acceptor " + str(self.idnum) + " has not selected leader yet because leaderNum = " + str(self.selected_leaderNum) + " and we received message from leader " + str(leaderNum))
 
 
 	def send_value (self, leaderNum, seqNum, value):
@@ -49,9 +53,9 @@ class Acceptor:
 
 
  # accept_value is being used in place of this function. The broadcast cannot be skipped.
-	def set_accept_value (self, leaderID, seqNum, value):
+	'''def set_accept_value (self, leaderID, seqNum, value):
 		if leaderID == self.selected_leaderNum:
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
 		else:
-			printd("Acceptor could not set accept value because leaderID = " + str(self.selected_leaderNum))
+			printd("Acceptor could not set accept value because leaderID = " + str(self.selected_leaderNum))'''
