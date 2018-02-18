@@ -11,12 +11,13 @@ from Util import printd
 
 class Acceptor:
 
-	def __init__ (self, idnum):
+	def __init__ (self, idnum, learner):
 		self.selected_leaderNum = -1 # Integer value for selected leader
 		self.accepted_seqNum = -1 # sequence number for the value
 		self.accepted_lastVal = -1 # Last seen value that was proposed
 		self.socket_connections_list = None
 		self.idnum = idnum
+		self.learner = learner
 
 
 	def set_socket_list (self, socket_connections_list):
@@ -42,6 +43,7 @@ class Acceptor:
 		if int(leaderNum) == self.selected_leaderNum:
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
+			self.learner.acceptValue(leaderNum, seqNum, value)
 			self.send_value(leaderNum, seqNum, value)
 		else:
 			printd("Acceptor " + str(self.idnum) + " has not selected leader yet because leaderNum = " + str(self.selected_leaderNum) + " and we received message from leader " + str(leaderNum))

@@ -14,7 +14,7 @@ class Proposer:
 
 
 	## Assume that any replica that wants to take leadership does it be initializing a new proposer
-	def __init__ (self, idnum, majority_numb, acceptor, learner, socket_connections_list = None):
+	def __init__ (self, idnum, majority_numb, acceptor, socket_connections_list = None):
 		self.value = "default_value"
 		self.am_leader = False
 		self.majority_numb = majority_numb
@@ -27,7 +27,6 @@ class Proposer:
 		self.follower_collection = []
 		self.acceptor = acceptor # potential bug depending on how python passes parameters (MATT SAYS: definitely by reference right?)
 		self.acceptor.selected_leaderNum = self.leaderNum # At least our acceptor will follow us...
-		self.learner = learner # same as above but I think we're good
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 

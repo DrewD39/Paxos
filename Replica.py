@@ -22,12 +22,11 @@ import Test
 
 class Replica():
 
-	timeout = 3 # value in seconds
+	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
 
-		self.chat_log = [] # List of strings for each message
 		self.idnum = idnum
 		self.ip = ip
 		self.port = int(port)
@@ -37,8 +36,8 @@ class Replica():
 
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
-		self.acceptor = Acceptor.Acceptor(self.idnum)
 		self.learner = Learner.Learner(self.majority, self.idnum)
+		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
 		self.seq_number = 0
 
 		self.proposer = None
@@ -61,9 +60,9 @@ class Replica():
 
 		if self.idnum == 0: # Only one proposer at a time
 			self.initialize_proposer()
-			self.should_kill = True # Also we'll try killing the first leader
+			self.should_kill = False # Also we'll try killing the first leader
 		elif self.idnum == 1:
-			self.should_kill = True
+			self.should_kill = False
 		else:
 			self.should_kill = False
 
@@ -84,7 +83,7 @@ class Replica():
 
 
 	def initialize_proposer (self):
-		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.learner)
+		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor)
 		# socket connections list should now be set up
 		self.proposer.set_socket_list(self.connections_list)
 		self.proposer.send_iamleader_message()
@@ -152,17 +151,6 @@ class Replica():
 		printd("Server is setup for " + str(self.idnum))
 
 
-	def add_msg_to_chat_log (self, msg):
-		self.chat_log.append(msg)
-		# TODO: just for debugging, later remove this
-		print self.get_chat_log()
-
-		# I want to open a file a single time but I'm not sure how to ensure we close it at the end
-		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
-		self.file_log.write(self.get_chat_log() + "\n")
-		self.file_log.close()
-
-
 	def recv_message (self, socket):
 		if self.active:
 			msg = Messenger.recv_message(socket)
@@ -205,7 +193,7 @@ class Replica():
 				# to:   Acceptor
 				# args: leaderNum, seqNum, value
 				self.acceptor.accept_value(args[0], args[1], args[2])
-				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum) - 1))
+				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum)))
 
 			elif cmd == MessageType.ACCEPT.value:
 				# Acceptor should now send message
@@ -215,7 +203,6 @@ class Replica():
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2])
 				if accepted == True: # True == majority achieved; False == no majority
-					self.add_msg_to_chat_log(args[2])
 					if self.proposer:
 						# TODO: This shouldn't be hardcoded for client
 						self.proposer.reply_to_client(self.client, args[2])
@@ -231,7 +218,3 @@ class Replica():
 				self.proposer.set_leader_num(args[0])
 			else:
 				printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))
-
-
-	def get_chat_log (self):
-		return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))
