@@ -12,7 +12,6 @@ import sys
 import Learner
 from Util import printd
 import signal, os
-import Test
 
 
 '''
@@ -22,7 +21,7 @@ import Test
 
 class Replica():
 
-	timeout = 3 # value in seconds
+	timeout = 30 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
@@ -61,9 +60,9 @@ class Replica():
 
 		if self.idnum == 0: # Only one proposer at a time
 			self.initialize_proposer()
-			self.should_kill = True # Also we'll try killing the first leader
+			self.should_kill = False # Also we'll try killing the first leader
 		elif self.idnum == 1:
-			self.should_kill = True
+			self.should_kill = False
 		else:
 			self.should_kill = False
 
@@ -163,22 +162,22 @@ class Replica():
 		self.file_log.close()
 
 
-	def recv_message (self, socket):
+	def recv_message (self, origin_socket):
 		if self.active:
-			msg = Messenger.recv_message(socket)
+			msg = Messenger.recv_message(origin_socket)
 			#printd("Message is " + str(msg))
 			cmd, info = msg.split(":",1)
 			args = info.split(",")
+
 			printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
 
 			if cmd == MessageType.REQUEST.value:
 				# from: Client
 				# to:   Proposer
-				# args: Client_seqnum, value
+				# args: client_name, client_seqnum, value
 				# TODO: definite bug when there's multiple clients but for now we'll leave it
-				self.client = socket # This is the client socket for this request
 				if self.proposer:
-					self.proposer.acceptRequest(args[1], self.seq_number)
+					self.proposer.acceptRequest(origin_socket, args[0], args[1], args[2])
 
 				self.seq_number += 1
 				# printd("Received request message")
@@ -187,7 +186,7 @@ class Replica():
 				# from: Proposer
 				# to:   Acceptor
 				# args: leaderNum
-				self.acceptor.acceptLeader(args[0], socket)
+				self.acceptor.acceptLeader(args[0], origin_socket)
 
 			elif cmd == MessageType.YOU_ARE_LEADER.value:
 				# from: Acceptor
@@ -203,25 +202,24 @@ class Replica():
 				# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
 				# from: Proposer
 				# to:   Acceptor
-				# args: leaderNum, seqNum, value
-				self.acceptor.accept_value(args[0], args[1], args[2])
+				# args: leaderNum, req_id, seqNum, value
+				self.acceptor.accept_value(args[0], args[1], args[2], args[3])
 				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum) - 1))
 
 			elif cmd == MessageType.ACCEPT.value:
 				# Acceptor should now send message
 				# from: Acceptor
 				# to: Learner
-				# info: leaderNum, sequence number, value
+				# info: leaderNum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
-				accepted = self.learner.acceptValue(args[0], args[1], args[2])
+				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3])
 				if accepted == True: # True == majority achieved; False == no majority
-					self.add_msg_to_chat_log(args[2])
+					self.add_msg_to_chat_log(args[3])
 					if self.proposer:
-						# TODO: This shouldn't be hardcoded for client
-						self.proposer.reply_to_client(self.client, args[2])
+						self.proposer.reply_to_client(args[1], args[3])
 						# This is just a test to try killing the primary again and again
 						if self.should_kill == True:
-							printd("Shutting down replica " + str(self.idnum))
+							printd("MANUALLY SHUTTING DOWN REPLICA " + str(self.idnum))
 							self.active = False
 
 			elif cmd == MessageType.NACK.value:

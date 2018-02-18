@@ -28,30 +28,45 @@ class Proposer:
 		self.acceptor = acceptor # potential bug depending on how python passes parameters (MATT SAYS: definitely by reference right?)
 		self.acceptor.selected_leaderNum = self.leaderNum # At least our acceptor will follow us...
 		self.learner = learner # same as above but I think we're good
+		self.request_history = dict() # key = client_name,client_seq_num tuple; value = socket of origin,internal_seq_num tuple
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 
 
-	def acceptRequest(self, value, seq_number, seq_number_override=-1):
+	def acceptRequest(self, origin_socket, client_name, client_seq_number, value): # value, seq_number, seq_number_override=-1): self.client_name, self.client_seq_number, value
 		## if I have majority of followers
 		#### broadcast seqNum, command
 		self.value = value
+		req_id = str(client_name) + '-' + str(client_seq_number)
 		#print("SEQUENCE NUMBER HERE IS " + str(self.seq_number))
 		'''if seq_number_override == -1: # if no override
 			self.seq_number += 1
 		else: # may need to override seq_num for a leader's first command
 			print "OVERRIDING SEQUENCE NUMBER"
 			self.seq_number = seq_number_override'''
-		self.seq_number = seq_number
+
+
+		repeated_command = False
+
+		if ( (client_name,client_seq_number) not in self.request_history ):  # if you've never seen this client_name, client_seq_num pair, it is a new request
+			self.seq_number += 1
+			self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
+		else: # else need to re-propose this message with the original sequence number
+			repeated_command = True
+			## BUG TODO WARNING - We need to change the way our start up proposer gets its original seq_num. It should get it from the YOU_ARE_LEADER messages which should someone include their LATEST seq_num accepted <- that is different than LAST seq_num accepted
 
 		if self.am_leader == True:
 			msg =  str(self.leaderNum)
-			msg += "," + str(self.seq_number)
+			msg += "," + req_id
+			if not repeated_command:
+				msg += "," + str(self.seq_number)
+			else:
+				msg += "," + str(self.request_history[(client_name,client_seq_number)][1]) # use the original seq_num for this unique command request
 			msg += "," + str(self.value)
 			full_msg = str(MessageType.COMMAND.value) + ":" + msg
 
 			printd("Leader " + str(self.leaderNum) + "'s sequence number is " + str(self.seq_number))
-			self.acceptor.accept_value(self.leaderNum, self.seq_number, self.value) # We should also accept a value locally
+			self.acceptor.accept_value(self.leaderNum, req_id, self.seq_number, self.value) # We should also accept a value locally
 
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
 			printd("Request accepted on replica {} (leader number: {})".format(str(self.idnum),str(self.leaderNum)))
@@ -61,8 +76,12 @@ class Proposer:
 			printd("Request queued because we're not the agreed upon leader yet")
 
 
-	def reply_to_client (self, clientsock, value):
+	# command succesfully executed
+	def reply_to_client (self, req_id, value):
+		client_name,client_seq_number = req_id.split('-')
+		clientsock = self.request_history[ (client_name, client_seq_number) ][0]
 		Messenger.send_message(clientsock, value)
+		del self.request_history[ (client_name, client_seq_number) ]
 
 
 	def send_iamleader_message(self):
@@ -95,6 +114,7 @@ class Proposer:
 		if not self.am_leader: # if not leader
 			if (self.numb_followers >= self.majority_numb):
 				self.am_leader = True
+				printd("Replica {} just became the leader".format(self.idnum))
 				# need to decide most relavant last value.
 				# find follower with highest prevLeaderNum. Break ties with seq_num, then val.
 				max_prevLeader = -1; max_prevSeqNum = -1; max_prevVal = '';
@@ -129,7 +149,7 @@ class Proposer:
 
 
 		else:
-			printd(str(self.idnum) + " is the leader!")
+			printd(str(self.idnum) + " was already the leader!")
 		#seq_number = 0 # TODO: actually get sequence number
 		#self.proposer.send_value(self.idnum, seq_number)
 

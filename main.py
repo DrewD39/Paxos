@@ -57,14 +57,34 @@ if __name__ == "__main__":
 		semaphore.acquire()
 
 	# And now we should run the client
-	client = Client (config.server_pairs)
-	client.connect_to_all_replicas() # Connect to all replicas even if they don't have a proposer yet
+	client1 = Client (config.server_pairs, 'A')
+	client1.connect_to_all_replicas() # Connect to all replicas even if they don't have a proposer yet
 
-	msg = "Hello how are you today?"
+	client2 = Client (config.server_pairs, 'B')
+	client2.connect_to_all_replicas() # Connect to all replicas even if they don't have a proposer yet
+
+
+	msg1 = "XXXXXXXX"
+	msg2 = "ZZZZZZZZ"
+
+	num_messages = 3
+
+	time.sleep(4)
+
+	#client.operate() has 3 optional parameters and I did not want to bother with option arg syntax for the Process library, as it was taking too long for little returnList
+	# args: operate (self, num_messages=1, manual_messages=False, repeated_message=None, messages_file=None)
+	Process(target=client1.operate,args=(num_messages,False,msg1,None)).start()
+	Process(target=client2.operate,args=(num_messages,False,msg2,None)).start()
+
+
+
+'''
 	for i in range(0, 10):
+		Process(target=replica.start_replica)
 		#msg = raw_input("What is your msg? ")
 		client.send_message(str(i) + ":" + msg)
 		#if i == 5:
 		#	time.sleep(6)
 		recvd_msg = str(client.recv_message())
 		#msg = str(chatbot.get_response(recvd_msg)) For later....
+'''

@@ -17,7 +17,7 @@ class Learner:
 		self.idnum = idnum
 
 
-	def acceptValue (self, leaderNum, seq_number, value):
+	def acceptValue (self, leaderNum, req_id, seq_number, value):
 		if seq_number not in self.seq_dict:
 			self.seq_dict[seq_number] = 1
 
@@ -31,5 +31,5 @@ class Learner:
 			self.seq_dict[seq_number] = 0
 			return True
 		else:
-			printd("Don't have majority for learner yet..., seq_number = " + seq_number + " and valeus_list = "  + str(self.seq_dict[seq_number]))
+			printd("Don't have majority learner yet: rep_id="+str(self.idnum)+",seq_num=" + seq_number + ",Num votes seen="  + str(self.seq_dict[seq_number]))
 			return False
