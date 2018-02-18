@@ -4,7 +4,7 @@ import sys
 from Util import printd
 import random
 
-threshold = .05
+threshold = 0
 
 class MessageType(Enum):
 	REQUEST = "1"

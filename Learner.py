@@ -18,8 +18,7 @@ class Learner:
 		self.idnum = idnum
 
 
-	def acceptValue (self, leaderNum, seq_number, value):
-
+	def acceptValue (self, leaderNum, req_id, seq_number, value):
 		if seq_number not in self.seq_dict:
 			self.seq_dict[seq_number] = dict()
 

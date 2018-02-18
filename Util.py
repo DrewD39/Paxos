@@ -42,3 +42,13 @@ def printd (msg):
 	lock.acquire()
 	logging.debug(str(msg))
 	lock.release()
+
+'''
+class req_info:
+	def __init__ (client_name, client_seq_number):
+		self.client_name = client_name
+		self.client_seq_number = client_seq_number
+
+	def to_string ():
+		return str(client_name) + "-" + str(client_seq_number)
+'''

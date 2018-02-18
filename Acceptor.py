@@ -39,18 +39,18 @@ class Acceptor:
 		Messenger.send_message (socket, msg)
 
 
-	def accept_value (self, leaderNum, seqNum, value): # leaderNum, value
+	def accept_value (self, leaderNum, req_id, seqNum, value): # leaderNum, value
 		if int(leaderNum) == self.selected_leaderNum:
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
-			self.learner.acceptValue(leaderNum, seqNum, value)
-			self.send_value(leaderNum, seqNum, value)
+			self.learner.acceptValue(leaderNum, req_id, seqNum, value)
+			self.send_value(leaderNum, req_id, seqNum, value)
 		else:
 			printd("Acceptor " + str(self.idnum) + " has not selected leader yet because leaderNum = " + str(self.selected_leaderNum) + " and we received message from leader " + str(leaderNum))
 
 
-	def send_value (self, leaderNum, seqNum, value):
-		full_msg = MessageType.ACCEPT.value + ":{},{},{}".format(leaderNum,seqNum,value)
+	def send_value (self, leaderNum, req_id, seqNum, value):
+		full_msg = MessageType.ACCEPT.value + ":{},{},{},{}".format(leaderNum,req_id,seqNum,value)
 		Messenger.broadcast_message(self.socket_connections_list, full_msg)
 
 

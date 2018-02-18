@@ -13,12 +13,13 @@ class Client:
 
     client_timeout = 5 # timeout for client response
 
-    def __init__ (self, replica_list):
+    def __init__ (self, replica_list, client_name):
         # Each request should be identifiable by a client sequence number
-        self.seq_number = 0
+        self.client_seq_number = 0
         self.replica_list = [x for x in replica_list]
         self.connection_sockets = []
         self.msg = None
+        self.client_name = client_name
 
     def connect_to_all_replicas (self):
         for replica in self.replica_list:
@@ -51,12 +52,32 @@ class Client:
 
             # Handle received messages
             for s in rd:
+                self.client_seq_number += 1 # move on to next client sequence number and next command
+                self.msg = None
                 return Messenger.recv_message(s)
 
 
     def send_message (self, value):
-        self.msg = str(MessageType.REQUEST.value) + ":" + str(self.seq_number) + "," + value
+        self.msg = "{}:{},{},{}".format(MessageType.REQUEST.value, self.client_name, self.client_seq_number, value)
         Messenger.broadcast_message(self.connection_sockets, self.msg)
         #Messenger.send_message(self.connection_socket, full_msg)
-        printd("Client sent message to all replicas with value " + str(value))
-        self.seq_number += 1
+        printd("Client {} sent message to all replicas with value {}".format(self.client_name,str(value)))
+
+
+
+    def operate (self, num_messages=1, manual_messages=False, repeated_message=None, messages_file=None):
+        printd("Client {} is operating".format(self.client_name))
+        if manual_messages:
+            msg = raw_input("What is Client {}'s msg? ".format(self.client_name))
+        elif repeated_message != None:
+            msg = repeated_message
+        elif messages_file:
+            pass
+
+        #if self.client_name == 'A':
+        #    time.sleep(10)
+
+        for i in range(num_messages):
+            self.send_message(str(i) + ":" + msg)
+            recvd_msg = str(self.recv_message())
+            time.sleep(1)
