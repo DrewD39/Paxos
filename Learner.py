@@ -23,16 +23,12 @@ class Learner:
 
 		if seq > self.last_executed_seq_number: # Else we should ignore
 			if seq not in self.seq_dict.keys():
-				printd("FOR {}, THIS A NEW SEQUENCE NUMBER {}.".format(self.idnum, seq_number))
 				self.seq_dict[seq] = dict()
 
 			if value not in self.seq_dict[seq]:
-				printd("{}'s value is {} and self.seq_dict is {} for seq_number {}.".format(self.idnum, value, self.seq_dict[seq], seq_number))
 				self.seq_dict[seq][value] = 1 # We've now seen one of these values
 			else:
 				self.seq_dict[seq][value] += 1 # Increment the number of messages we've seen for this sequence number and value
-
-			printd("{} ACCEPTING VALUE {} MAJORITY IS {}, WE'VE SEEN {} for seq_number {}".format(self.idnum, value, self.majority_numb, self.seq_dict[seq][value], seq_number))
 
 			if self.seq_dict[seq][value] == self.majority_numb:
 				# Execute commnand
@@ -52,10 +48,6 @@ class Learner:
 
 	def try_to_execute_commands (self):
 		# Convoluted way to peek at PriorityQueue
-		if int(self.commands_to_execute.queue[0][0]) != (self.last_executed_seq_number + 1):
-			printd("{} CAN'T EXECUTE A COMMAND BECAUSE OUR SEQUENCE NUMBER {} ISN'T HIGH ENOUGH {}".format(self.idnum, int(self.commands_to_execute.queue[0][0]), self.last_executed_seq_number + 1))
-			printd("{}".format(self.commands_to_execute.queue))
-
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
 			command = self.commands_to_execute.get()
 			printd("{} has tuple {}".format(self.idnum, command))
