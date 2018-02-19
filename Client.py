@@ -11,7 +11,7 @@ from Messenger import MessageType
 
 class Client:
 
-    client_timeout = 5 # timeout for client response
+    client_timeout = 10 # timeout for client response
 
     def __init__ (self, replica_list, client_name):
         # Each request should be identifiable by a client sequence number
@@ -64,7 +64,6 @@ class Client:
         printd("Client {} sent message to all replicas with value {}".format(self.client_name,str(value)))
 
 
-
     def operate (self, num_messages=1, manual_messages=False, repeated_message=None, messages_file=None):
         printd("Client {} is operating".format(self.client_name))
         if manual_messages:
@@ -78,6 +77,8 @@ class Client:
         #    time.sleep(10)
 
         for i in range(num_messages):
-            self.send_message(str(i) + ":" + msg)
+            self.send_message(str(i) + ":" + str(self.client_seq_number) + ":" + msg)
             recvd_msg = str(self.recv_message())
+            printd("Client received message {}.".format(recvd_msg))
+            #self.client_seq_number += 1 # move on to next client sequence number and next command
             time.sleep(1)

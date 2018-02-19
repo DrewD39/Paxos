@@ -19,40 +19,47 @@ class Learner:
 
 
 	def acceptValue (self, leaderNum, req_id, seq_number, value):
-		if seq_number not in self.seq_dict:
-			self.seq_dict[seq_number] = dict()
+		seq = int(seq_number)
 
-		if value not in self.seq_dict[seq_number]:
-			self.seq_dict[seq_number][value] = 1 # We've now seen one of these values
-		else:
-			self.seq_dict[seq_number][value] += 1 # Increment the number of messages we've seen for this sequence number and value
+		if seq > self.last_executed_seq_number: # Else we should ignore
+			if seq not in self.seq_dict.keys():
+				printd("FOR {}, THIS A NEW SEQUENCE NUMBER {}.".format(self.idnum, seq_number))
+				self.seq_dict[seq] = dict()
 
-		if self.seq_dict[seq_number][value] == self.majority_numb:
-			# Execute commnand
-			printd(str(self.idnum) + " executes commands " + str(value) + " for seq number " + str(seq_number))
-			#self.add_msg_to_chat_log(value)
-			# We shouldn't execute again for this seq_number, and since we've already received
-			# a majority, we're guaranteed to not receive a majority again
-			#self.seq_dict[seq_number] = 0
-			self.commands_to_execute.put((seq_number, value))
-			self.try_to_execute_command()
-			del self.seq_dict[seq_number]
-			return True
-		else:
-			printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq_number][value]))
-			#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
-			return False
+			if value not in self.seq_dict[seq]:
+				printd("{}'s value is {} and self.seq_dict is {} for seq_number {}.".format(self.idnum, value, self.seq_dict[seq], seq_number))
+				self.seq_dict[seq][value] = 1 # We've now seen one of these values
+			else:
+				self.seq_dict[seq][value] += 1 # Increment the number of messages we've seen for this sequence number and value
+
+			printd("{} ACCEPTING VALUE {} MAJORITY IS {}, WE'VE SEEN {} for seq_number {}".format(self.idnum, value, self.majority_numb, self.seq_dict[seq][value], seq_number))
+
+			if self.seq_dict[seq][value] == self.majority_numb:
+				# Execute commnand
+				#self.add_msg_to_chat_log(value)
+				# We shouldn't execute again for this seq_number, and since we've already received
+				# a majority, we're guaranteed to not receive a majority again
+				#self.seq_dict[seq_number] = 0
+				self.commands_to_execute.put((seq, value))
+				self.try_to_execute_commands()
+				del self.seq_dict[seq]
+				return True
+			else:
+				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][value]))
+				#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
+				return False
 
 
-	def try_to_execute_command (self):
+	def try_to_execute_commands (self):
 		# Convoluted way to peek at PriorityQueue
-		earliest_seq_number = int(self.commands_to_execute.queue[0][0])
+		if int(self.commands_to_execute.queue[0][0]) != (self.last_executed_seq_number + 1):
+			printd("{} CAN'T EXECUTE A COMMAND BECAUSE OUR SEQUENCE NUMBER {} ISN'T HIGH ENOUGH {}".format(self.idnum, int(self.commands_to_execute.queue[0][0]), self.last_executed_seq_number + 1))
+			printd("{}".format(self.commands_to_execute.queue))
 
-		if earliest_seq_number == self.last_executed_seq_number + 1:
+		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
 			command = self.commands_to_execute.get()
+			printd("{} has tuple {}".format(self.idnum, command))
 			self.execute_command(command)
-		else:
-			printd("Couldn't execute command for sequence number {} because the max sequence number is {}".format(earliest_seq_number, self.last_executed_seq_number))
 
 
 	def execute_command (self, command):
@@ -61,6 +68,8 @@ class Learner:
 
 		self.add_msg_to_chat_log(value)
 		self.last_executed_seq_number = int(seq_number)
+
+		printd(str(self.idnum) + " executes commands " + str(command))
 
 
 	def add_msg_to_chat_log (self, msg):

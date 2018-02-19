@@ -71,7 +71,7 @@ class Proposer:
 			printd("Request accepted on replica {} (leader number: {})".format(str(self.idnum),str(self.leaderNum)))
 
 		else: # if not yet leader
-			self.requests_before_leadership.put((value, seq_number))
+			self.requests_before_leadership.put((value, self.seq_number))
 			printd("Request queued because we're not the agreed upon leader yet")
 
 

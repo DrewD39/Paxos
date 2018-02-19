@@ -3,6 +3,7 @@ from enum import Enum
 import sys
 from Util import printd
 import random
+from socket import error as SocketError
 
 threshold = 0
 
@@ -33,24 +34,33 @@ def recv_header (aSocket):
 # recv message on socket
 # return message
 def recv_message (aSocket):
-	msg_size = recv_header(aSocket)
-	chunk = aSocket.recv(msg_size)
-	if chunk == '':
-		raise RuntimeError("Receiving message failed")
-	return chunk
+	try:
+		msg_size = recv_header(aSocket)
+		chunk = aSocket.recv(msg_size)
+
+		if chunk == '':
+			raise RuntimeError("Receiving message failed")
+		return chunk
+	except (SocketError, ValueError) as e:
+		printd("Socket error but should be no problem if you're killing a process")
+		return ''
 
 
 # Send a single message
 def send_message (aSocket, msg):
-	if not should_drop_message():
-		header = '%8s' % len(msg)
-		#send_header(socket, len(msg))
-		sent = aSocket.send(header + msg)
-		#printd("socket {} sent msg: {} to: {}".format(socket.getsockname(),msg, socket.getpeername()))
-		if sent == 0:
-			raise RuntimeError("Send message failed")
-	else:
-		print ("Dropped message ".upper() + str(msg))
+	try:
+		if not should_drop_message():
+			header = '%8s' % len(msg)
+			#send_header(socket, len(msg))
+			sent = aSocket.send(header + msg)
+			#printd("socket {} sent msg: {} to: {}".format(socket.getsockname(),msg, socket.getpeername()))
+			if sent == 0:
+				raise RuntimeError("Send message failed")
+		else:
+			print ("Dropped message ".upper() + str(msg))
+	except SocketError as e:
+		printd("Socket error but should be no problem if you're killing a process")
+		return ''
 
 
 def broadcast_message (sockets, msg):

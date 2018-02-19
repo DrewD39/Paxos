@@ -37,7 +37,6 @@ class Replica():
 
 		self.learner = Learner.Learner(self.majority, self.idnum)
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
-		self.seq_number = 0
 
 		self.proposer = None
 
@@ -61,7 +60,7 @@ class Replica():
 			self.initialize_proposer()
 			self.should_kill = True # Also we'll try killing the first leader
 		elif self.idnum == 1:
-			self.should_kill = False
+			self.should_kill = True
 		else:
 			self.should_kill = False
 
@@ -97,7 +96,7 @@ class Replica():
 
 
 	def wait_for_message (self):
-		while 1: # Should just continue to wait for messages
+		while 1 and self.active: # Should just continue to wait for messages
 			rd, wd, ed = select.select(self.connections_list, [], [], self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
@@ -112,7 +111,7 @@ class Replica():
 
 
 	def client_thread (self, clientsocket):
-		while 1: # Should just continue to wait for messages
+		while 1 and self.active: # Should just continue to wait for messages
 			rd, wd, ed = select.select([clientsocket], [], [])
 
 			# Handle received messages
@@ -166,7 +165,6 @@ class Replica():
 				if self.proposer:
 					self.proposer.acceptRequest(origin_socket, args[0], args[1], args[2])
 
-				self.seq_number += 1
 				# printd("Received request message")
 
 			elif cmd == MessageType.I_AM_LEADER.value:
@@ -191,7 +189,7 @@ class Replica():
 				# to:   Acceptor
 				# args: leaderNum, req_id, seqNum, value
 				self.acceptor.accept_value(args[0], args[1], args[2], args[3])
-				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum) - 1))
+				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum)))
 
 			elif cmd == MessageType.ACCEPT.value:
 				# Acceptor should now send message
