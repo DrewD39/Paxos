@@ -203,7 +203,7 @@ class Replica():
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3])
 				if accepted == True: # True == majority achieved; False == no majority
-					if self.proposer and self.should_kill and int(args[2])>4:
+					if self.proposer and self.should_kill:# and int(args[2])>4:
 						# This is just a test to try killing the primary again and again
 						if self.should_kill == True:
 							printd("MANUALLY SHUTTING DOWN REPLICA " + str(self.idnum))

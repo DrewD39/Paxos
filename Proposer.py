@@ -21,7 +21,7 @@ class Proposer:
 		# I think this can be equal to one since we can count ourselves
 		self.numb_followers = 1
 		self.seq_number = -1
-		self.requests_before_leadership = Queue.Queue()
+		#self.requests_before_leadership = Queue.Queue()
 		self.idnum = idnum
 		self.leaderNum = 0
 		self.follower_collection = []
@@ -75,9 +75,9 @@ class Proposer:
 			Messenger.broadcast_message(self.socket_connections_list, full_msg)
 			printd("Request accepted on replica {} (leader number: {})".format(str(self.idnum),str(self.leaderNum)))
 
-		else: # if not yet leader
-			self.requests_before_leadership.put((value, self.seq_number))
-			printd("Request queued because we're not the agreed upon leader yet")
+		#else: # if not yet leader
+		#	self.requests_before_leadership.put((value, self.seq_number))
+		#	printd("Request queued because we're not the agreed upon leader yet")
 
 
 	def send_iamleader_message(self):
@@ -93,7 +93,7 @@ class Proposer:
 			self.acceptor.selected_leaderNum = self.leaderNum
 
 		#self.leaderNum += 1
-		self.requests_before_leadership = Queue.Queue() # may not need this
+		#self.requests_before_leadership = Queue.Queue() # may not need this
 		printd("Sending message with leader value " + str(self.leaderNum))
 		full_msg = str(MessageType.I_AM_LEADER.value) + ":" + str(self.leaderNum)
 		if self.socket_connections_list:

@@ -15,7 +15,7 @@ class MessageType(Enum):
 	NACK = "6"
 
 def should_drop_message ():
-	threshold = .01
+	threshold = 0
 	p = random.uniform(0, 1)
 	return p < threshold
 
