@@ -42,7 +42,7 @@ def recv_message (aSocket):
 			raise RuntimeError("Receiving message failed")
 		return chunk
 	except (SocketError, ValueError) as e:
-		printd("Socket error but should be no problem if you're killing a process")
+		printd("Socket error in receive but should be no problem if you're killing a process")
 		return ''
 
 
@@ -59,7 +59,7 @@ def send_message (aSocket, msg):
 		else:
 			print ("Dropped message ".upper() + str(msg))
 	except SocketError as e:
-		printd("Socket error but should be no problem if you're killing a process")
+		printd("Socket error in send but should be no problem if you're killing a process")
 		return ''
 
 

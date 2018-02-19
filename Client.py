@@ -52,9 +52,15 @@ class Client:
 
             # Handle received messages
             for s in rd:
-                self.client_seq_number += 1 # move on to next client sequence number and next command
-                self.msg = None
-                return Messenger.recv_message(s)
+
+                message = Messenger.recv_message(s)
+
+                if message is not '':
+                    self.client_seq_number += 1 # move on to next client sequence number and next command
+                    self.msg = None
+                    return message
+                else: # We got a socket disconnection from one of our replicas which means its kaputs for good...
+                    self.connection_sockets.remove(s)
 
 
     def send_message (self, value):

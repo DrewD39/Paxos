@@ -79,6 +79,7 @@ class Proposer:
 	def reply_to_client (self, req_id, value):
 		client_name,client_seq_number = req_id.split('-')
 		clientsock = self.request_history[ (client_name, client_seq_number) ][0]
+		printd("Responding to client {} with client_seq_number {}.".format(client_name, client_seq_number))
 		Messenger.send_message(clientsock, value)
 		del self.request_history[ (client_name, client_seq_number) ]
 

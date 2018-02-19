@@ -96,7 +96,7 @@ class Replica():
 
 
 	def wait_for_message (self):
-		while 1 and self.active: # Should just continue to wait for messages
+		while self.active: # Should just continue to wait for messages
 			rd, wd, ed = select.select(self.connections_list, [], [], self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
@@ -111,7 +111,7 @@ class Replica():
 
 
 	def client_thread (self, clientsocket):
-		while 1 and self.active: # Should just continue to wait for messages
+		while self.active: # Should just continue to wait for messages
 			rd, wd, ed = select.select([clientsocket], [], [])
 
 			# Handle received messages

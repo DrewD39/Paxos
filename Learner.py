@@ -1,6 +1,6 @@
 
 from Util import printd
-from queue import PriorityQueue
+from Queue import PriorityQueue
 
 '''
 	This class will be the final decider of values
