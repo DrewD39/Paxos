@@ -67,9 +67,9 @@ if __name__ == "__main__":
 	msg1 = "XXXXXXXX"
 	msg2 = "ZZZZZZZZ"
 
-	num_messages = 5
+	num_messages = 8
 
-	time.sleep(4)
+	time.sleep(1)
 
 	#client.operate() has 3 optional parameters and I did not want to bother with option arg syntax for the Process library, as it was taking too long for little returnList
 	# args: operate (self, num_messages=1, manual_messages=False, repeated_message=None, messages_file=None)
