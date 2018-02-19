@@ -1,6 +1,7 @@
 
 from Util import printd
 from Queue import PriorityQueue
+import Messenger
 
 '''
 	This class will be the final decider of values
@@ -16,6 +17,7 @@ class Learner:
 		self.commands_to_execute = PriorityQueue()
 		self.last_executed_seq_number = - 1 # We haven't executed any commands yet
 		self.idnum = idnum
+		self.client_mapping = dict()
 
 
 	def acceptValue (self, leaderNum, req_id, seq_number, value):
@@ -36,8 +38,9 @@ class Learner:
 				# We shouldn't execute again for this seq_number, and since we've already received
 				# a majority, we're guaranteed to not receive a majority again
 				#self.seq_dict[seq_number] = 0
-				self.commands_to_execute.put((seq, value))
+				self.commands_to_execute.put((seq, value, req_id))
 				self.try_to_execute_commands()
+				printd(str(self.idnum) + " has majority for value " + str(value))
 				del self.seq_dict[seq]
 				return True
 			else:
@@ -50,18 +53,36 @@ class Learner:
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
 			command = self.commands_to_execute.get()
-			printd("{} has tuple {}".format(self.idnum, command))
 			self.execute_command(command)
 
 
 	def execute_command (self, command):
 		seq_number = command[0]
 		value = command[1]
+		req_id = command[2]
 
 		self.add_msg_to_chat_log(value)
 		self.last_executed_seq_number = int(seq_number)
 
 		printd(str(self.idnum) + " executes commands " + str(command))
+
+		self.reply_to_client(req_id, value)
+
+
+	# command succesfully executed
+	def reply_to_client (self, req_id, value):
+		client_name, client_seq_number = req_id.split('-')
+
+		if client_name in self.client_mapping: # This client name must be in the client mapping
+			clientsock = self.client_mapping[client_name]
+			printd("Responding to client {} with client_seq_number {}.".format(client_name, client_seq_number))
+			Messenger.send_message(clientsock, value)
+		else:
+			raise RuntimeError("This client name: {}, is not in our mapping for replica {}.".format(client_name, self.idnum))
+
+
+	def add_client (self, clientname, clientsock):
+		self.client_mapping[clientname] = clientsock
 
 
 	def add_msg_to_chat_log (self, msg):

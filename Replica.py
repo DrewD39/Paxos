@@ -21,7 +21,7 @@ import signal, os
 
 class Replica():
 
-	timeout = 10 # value in seconds
+	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
@@ -91,6 +91,10 @@ class Replica():
 		while 1:
 			(clientsock, address) = self.serversocket.accept()
 			printd("Accept new client on socket " + str(clientsock.getsockname()))
+			# Receive clients name and add it to learners name->socket mapping
+			clientname = Messenger.recv_message(clientsock)
+			printd("Replica {} received connection to client {}.".format(self.idnum, clientname))
+			self.learner.add_client(clientname, clientsock)
 			ct = threading.Thread(target=self.client_thread, args=(clientsock,))
 			ct.start()
 
@@ -100,7 +104,7 @@ class Replica():
 			rd, wd, ed = select.select(self.connections_list, [], [], self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
-				if int(self.acceptor.selected_leaderNum) + 1 == int(self.idnum): # If we're the next in line
+				if (int(self.acceptor.selected_leaderNum) + 1) % (len(self.other_replicas)+1) == int(self.idnum): # If we're the next in line
 					printd("Creating a new proposer on replica " + str(self.idnum))
 					self.initialize_proposer()
 
@@ -199,8 +203,7 @@ class Replica():
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3])
 				if accepted == True: # True == majority achieved; False == no majority
-					if self.proposer:
-						self.proposer.reply_to_client(args[1], args[3])
+					if self.proposer and self.should_kill:
 						# This is just a test to try killing the primary again and again
 						if self.should_kill == True:
 							printd("MANUALLY SHUTTING DOWN REPLICA " + str(self.idnum))

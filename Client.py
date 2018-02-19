@@ -11,7 +11,7 @@ from Messenger import MessageType
 
 class Client:
 
-    client_timeout = 10 # timeout for client response
+    client_timeout = .5 # timeout for client response
 
     def __init__ (self, replica_list, client_name):
         # Each request should be identifiable by a client sequence number
@@ -33,6 +33,7 @@ class Client:
                 # RIP an hour...
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # This is a bug if we move this out... see man connect for python
                 s.connect((replica[0], int(replica[1]))) # Connect to (ip, port)
+                Messenger.send_message(s, self.client_name)
                 connected = True
             except Exception as e:
                 time.sleep(0) # yield thread
@@ -87,4 +88,4 @@ class Client:
             recvd_msg = str(self.recv_message())
             printd("Client received message {}.".format(recvd_msg))
             #self.client_seq_number += 1 # move on to next client sequence number and next command
-            time.sleep(1)
+            #time.sleep(1)

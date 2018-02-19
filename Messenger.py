@@ -5,7 +5,6 @@ from Util import printd
 import random
 from socket import error as SocketError
 
-threshold = 0
 
 class MessageType(Enum):
 	REQUEST = "1"
@@ -16,7 +15,7 @@ class MessageType(Enum):
 	NACK = "6"
 
 def should_drop_message ():
-	global threshold
+	threshold = .01
 	p = random.uniform(0, 1)
 	return p < threshold
 
@@ -57,7 +56,7 @@ def send_message (aSocket, msg):
 			if sent == 0:
 				raise RuntimeError("Send message failed")
 		else:
-			print ("Dropped message ".upper() + str(msg))
+			printd("Dropped message ".upper() + str(msg))
 	except SocketError as e:
 		printd("Socket error in send but should be no problem if you're killing a process")
 		return ''
