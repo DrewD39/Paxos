@@ -1,7 +1,7 @@
 import logging, sys
 import threading
 
-logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG) #stderr
 
 lock = threading.Lock()
 

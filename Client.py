@@ -11,7 +11,7 @@ from Messenger import MessageType
 
 class Client:
 
-    client_timeout = .5 # timeout for client response
+    client_timeout = 1 # timeout for client response
 
     def __init__ (self, replica_list, client_name):
         # Each request should be identifiable by a client sequence number
@@ -88,4 +88,4 @@ class Client:
             recvd_msg = str(self.recv_message())
             printd("Client received message {}.".format(recvd_msg))
             #self.client_seq_number += 1 # move on to next client sequence number and next command
-            #time.sleep(1)
+            time.sleep(.1)

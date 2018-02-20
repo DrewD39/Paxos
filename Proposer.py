@@ -14,7 +14,7 @@ class Proposer:
 
 
 	## Assume that any replica that wants to take leadership does it be initializing a new proposer
-	def __init__ (self, idnum, majority_numb, acceptor, socket_connections_list = None):
+	def __init__ (self, idnum, majority_numb, acceptor, skips, socket_connections_list = None):
 		self.value = "default_value"
 		self.am_leader = False
 		self.majority_numb = majority_numb
@@ -30,6 +30,7 @@ class Proposer:
 		self.request_history = dict() # key = client_name,client_seq_num tuple; value = socket of origin,internal_seq_num tuple
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
+		self.skips = skips
 
 
 	def acceptRequest(self, origin_socket, client_name, client_seq_number, value): # value, seq_number, seq_number_override=-1): self.client_name, self.client_seq_number, value
@@ -49,6 +50,10 @@ class Proposer:
 
 		if ( (client_name,client_seq_number) not in self.request_history ):  # if you've never seen this client_name, client_seq_num pair, it is a new request
 			self.seq_number += 1
+			if self.seq_number in self.skips:
+				printd("MANUALLY SKIPPING SEQ_NUM {}".format(self.seq_number))
+				self.seq_number += 1
+
 			self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
 
 			# skip logic: set up leader 0 to skip seq_num 3, then be killed on seq_num 5
@@ -133,8 +138,9 @@ class Proposer:
 				# so we return a list of args that replica can use to call accept request
 				# alternative: pass in acceptor on initialize. Possible bug if mem references aren't shared
 				# this function will set seq_num and value accordingly
-				if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != -1):
+				if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != ''):
 					print 'HERE'
+					
 					# TODO: We need to send out this value, eventually
 					#self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
 					self.seq_number = int(seq_number)

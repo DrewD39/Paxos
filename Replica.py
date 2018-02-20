@@ -21,10 +21,10 @@ import signal, os
 
 class Replica():
 
-	timeout = 1 # value in seconds
+	timeout = 3 # value in seconds
 	active = True # Replica is up and running
 
-	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
+	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):
 
 		self.idnum = idnum
 		self.ip = ip
@@ -39,6 +39,15 @@ class Replica():
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
 
 		self.proposer = None
+
+		self.skips = []
+		self.kills = []
+
+		for i in test_cases:
+			if i[0] == "kill":	# if kill case active, put the seq_num into kills list
+				self.kills.append(i[1])
+			if i[0] == "skip":	# if skip test case active, put the seq_num into skips list
+				self.skips.append(i[1])
 
 
 	def start_replica (self):
@@ -58,11 +67,11 @@ class Replica():
 
 		if self.idnum == 0: # Only one proposer at a time
 			self.initialize_proposer()
-			self.should_kill = True # Also we'll try killing the first leader
-		elif self.idnum == 1:
-			self.should_kill = True
-		else:
-			self.should_kill = False
+		#	self.should_kill = True
+		#elif self.idnum == 1:
+		#	self.should_kill = True
+		#else:
+		#	self.should_kill = False
 
 		self.acceptor.set_socket_list(self.connections_list)
 
@@ -81,7 +90,7 @@ class Replica():
 
 
 	def initialize_proposer (self):
-		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor)
+		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.skips)
 		# socket connections list should now be set up
 		self.proposer.set_socket_list(self.connections_list)
 		self.proposer.send_iamleader_message()
@@ -201,13 +210,11 @@ class Replica():
 				# to: Learner
 				# info: leaderNum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
-				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3])
-				if accepted == True: # True == majority achieved; False == no majority
-					if self.proposer and self.should_kill:# and int(args[2])>4:
-						# This is just a test to try killing the primary again and again
-						if self.should_kill == True:
-							printd("MANUALLY SHUTTING DOWN REPLICA " + str(self.idnum))
-							self.active = False
+				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3]) # True == majority achieved; False == no majority
+				if ( accepted == True and self.proposer and (int(args[2]) in self.kills) ):
+					# This is just a test of killing the primary again and again
+					printd("\n\nMANUALLY SHUTTING DOWN REPLICA " + str(self.idnum)+'\n')
+					self.active = False
 
 			elif cmd == MessageType.NACK.value:
 				# from: Acceptor

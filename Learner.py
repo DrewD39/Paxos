@@ -40,7 +40,7 @@ class Learner:
 				#self.seq_dict[seq_number] = 0
 				self.commands_to_execute.put((seq, value, req_id))
 				self.try_to_execute_commands()
-				printd(str(self.idnum) + " has majority for value " + str(value))
+				printd(str(self.idnum) + " has majority for value at {} of {} ".format(seq_number,str(value)))
 				del self.seq_dict[seq]
 				return True
 			else:
@@ -76,7 +76,7 @@ class Learner:
 		if client_name in self.client_mapping: # This client name must be in the client mapping
 			clientsock = self.client_mapping[client_name]
 			printd("Responding to client {} with client_seq_number {}.".format(client_name, client_seq_number))
-			Messenger.send_message(clientsock, value)
+			Messenger.send_message(clientsock, req_id)
 		else:
 			raise RuntimeError("This client name: {}, is not in our mapping for replica {}.".format(client_name, self.idnum))
 
