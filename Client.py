@@ -11,7 +11,7 @@ from Messenger import MessageType
 
 class Client:
 
-    client_timeout = 1 # timeout for client response
+    client_timeout = 3 # timeout for client response
 
     def __init__ (self, replica_list, client_name):
         # Each request should be identifiable by a client sequence number
@@ -20,6 +20,8 @@ class Client:
         self.connection_sockets = []
         self.msg = None
         self.client_name = client_name
+        self.prev_value = None
+
 
     def connect_to_all_replicas (self):
         for replica in self.replica_list:
@@ -33,7 +35,8 @@ class Client:
                 # RIP an hour...
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # This is a bug if we move this out... see man connect for python
                 s.connect((replica[0], int(replica[1]))) # Connect to (ip, port)
-                Messenger.send_message(s, self.client_name)
+                header = '%8s' % len(self.client_name)
+                s.send(header + self.client_name)
                 connected = True
             except Exception as e:
                 time.sleep(0) # yield thread
@@ -48,7 +51,7 @@ class Client:
             rd, wd, ed = select.select(self.connection_sockets, [], [], self.client_timeout)
 
             if len(rd) == 0: # Haven't received a message in a while...
-                print "Client timed-out and is resending " + str(self.msg)
+                printd("Client {} timed-out and is resending {}." .format(self.client_name, self.msg))
                 Messenger.broadcast_message(self.connection_sockets, self.msg)
 
             # Handle received messages
@@ -56,8 +59,11 @@ class Client:
 
                 message = Messenger.recv_message(s)
 
-                if message is not '':
+                if message == self.prev_value: # Only should accept one message back
+                    pass
+                elif message is not '':
                     self.client_seq_number += 1 # move on to next client sequence number and next command
+                    self.prev_value = message
                     self.msg = None
                     return message
                 else: # We got a socket disconnection from one of our replicas which means its kaputs for good...
