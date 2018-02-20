@@ -67,7 +67,7 @@ if __name__ == "__main__":
 	msg1 = "XXXXXXXX"
 	msg2 = "ZZZZZZZZ"
 
-	num_messages = 5
+	num_messages = 10
 
 	time.sleep(4)
 

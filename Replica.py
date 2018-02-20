@@ -24,6 +24,7 @@ class Replica():
 	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
+
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, proposer=False):
 
 		self.idnum = idnum
@@ -39,6 +40,7 @@ class Replica():
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
 
 		self.proposer = None
+		self.should_kill = False
 
 
 	def start_replica (self):
@@ -61,9 +63,8 @@ class Replica():
 			self.should_kill = True # Also we'll try killing the first leader
 		elif self.idnum == 1:
 			self.should_kill = True
-		else:
-			self.should_kill = False
 
+		self.learner.set_socket_list(self.connections_list)
 		self.acceptor.set_socket_list(self.connections_list)
 
 		self.semaphore.release() # Tell the main process we're done setting up our connections
@@ -72,12 +73,21 @@ class Replica():
 		# for connections from clients
 		t2 = threading.Thread(target=self.wait_for_message)
 		t3 = threading.Thread(target=self.wait_for_client_connections)
+		#t4 = threading.Thread(target=self.send_heartbeat)
 
 		t2.start()
 		t3.start()
+		#t4.start()
 
 		t2.join()
 		t3.join()
+
+
+	def send_heartbeat (self):
+		msg = "{}:{}".format(MessageType.HEARTBEAT.value, None)
+		while 1:
+			Messenger.broadcast_message(self.connections_list, msg)
+			time.sleep(self.timeout / 2)
 
 
 	def initialize_proposer (self):
@@ -101,12 +111,13 @@ class Replica():
 
 	def wait_for_message (self):
 		while self.active: # Should just continue to wait for messages
-			rd, wd, ed = select.select(self.connections_list, [], [], self.timeout)
+			rd, wd, ed = select.select(self.connections_list, [], [], (self.timeout * int(self.idnum)) + self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
-				if (int(self.acceptor.selected_leaderNum) + 1) % (len(self.other_replicas)+1) == int(self.idnum): # If we're the next in line
-					printd("Creating a new proposer on replica " + str(self.idnum))
-					self.initialize_proposer()
+				#if (int(self.acceptor.selected_leaderNum) + 1) % (len(self.other_replicas)+1) == int(self.idnum): # If we're the next in line
+				printd("Creating a new proposer on replica " + str(self.idnum))
+				self.initialize_proposer()
+					#pass
 
 			# Handle received messages
 			for s in rd:
@@ -159,7 +170,8 @@ class Replica():
 			cmd, info = msg.split(":",1)
 			args = info.split(",")
 
-			printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
+			if cmd != MessageType.HEARTBEAT.value:
+				printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
 
 			if cmd == MessageType.REQUEST.value:
 				# from: Client
@@ -205,7 +217,7 @@ class Replica():
 				if accepted == True: # True == majority achieved; False == no majority
 					if self.proposer and self.should_kill:
 						# This is just a test to try killing the primary again and again
-						if self.should_kill == True:
+						if self.should_kill == True and int(args[2]) >= 3:
 							printd("MANUALLY SHUTTING DOWN REPLICA " + str(self.idnum))
 							self.active = False
 
@@ -214,5 +226,17 @@ class Replica():
 				# to: Proposer
 				# info: highest_leader_num
 				self.proposer.set_leader_num(args[0])
+			elif cmd == MessageType.CATCHUP.value:
+				# from: Learner
+				# to: Other learners
+				# info: missing_seq_number
+				self.learner.send_value_at_seq_number(args[0])
+			elif cmd == MessageType.MISSING_VALUE.value:
+				# from: Other learners
+				# to : Learner
+				# info: missing_seq_number, missing_value
+				self.learner.fill_missing_value(args[0], args[1])
+			elif cmd == MessageType.HEARTBEAT.value: # Just a HEARTBEAT
+				pass
 			else:
 				printd("The replica " + str(self.idnum) + " did not recognize the message " + str(cmd))

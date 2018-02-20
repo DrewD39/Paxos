@@ -2,6 +2,7 @@
 from Util import printd
 from Queue import PriorityQueue
 import Messenger
+from Messenger import MessageType
 
 '''
 	This class will be the final decider of values
@@ -18,6 +19,7 @@ class Learner:
 		self.last_executed_seq_number = - 1 # We haven't executed any commands yet
 		self.idnum = idnum
 		self.client_mapping = dict()
+		self.connections_list = None
 
 
 	def acceptValue (self, leaderNum, req_id, seq_number, value):
@@ -50,6 +52,12 @@ class Learner:
 
 
 	def try_to_execute_commands (self):
+
+		for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
+			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
+			msg = "{}:{}".format(MessageType.CATCHUP.value, i)
+			Messenger.broadcast_message (self.connections_list, msg)
+
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
 			command = self.commands_to_execute.get()
@@ -85,6 +93,26 @@ class Learner:
 		self.client_mapping[clientname] = clientsock
 
 
+	def send_value_at_seq_number (self, missing_seq_number):
+		if len(self.chat_log) > missing_seq_number:
+			printd("Replica {} is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
+			msg = "{}:{},{}".format(MessageType.MISSING_VALUE, missing_seq_number, self.chat_log[missing_seq_number])
+			Messenger.broadcast_message(self.connections_list, msg)
+		else:
+			printd("Replica {} is also behind sequence number {}.".format(self.idnum, missing_seq_number))
+
+
+	def fill_missing_value (self, missing_seq_number, missing_value):
+		self.chat_log[missing_seq_number] = missing_value
+		self.last_executed_seq_number = missing_seq_number + 1
+
+		self.try_to_execute_commands() # Now try to process commands again
+
+
+	def set_socket_list (self, connections_list):
+		self.connections_list = connections_list
+
+
 	def add_msg_to_chat_log (self, msg):
 		self.chat_log.append(msg)
 		# TODO: just for debugging, later remove this
@@ -94,6 +122,7 @@ class Learner:
 		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
 		self.file_log.write(self.get_chat_log() + "\n")
 		self.file_log.close()
+
 
 	def get_chat_log (self):
 		return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))

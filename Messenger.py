@@ -13,9 +13,12 @@ class MessageType(Enum):
 	COMMAND = "4"
 	ACCEPT = "5"
 	NACK = "6"
+	CATCHUP = "7"
+	MISSING_VALUE = "8"
+	HEARTBEAT = "9"
 
 def should_drop_message ():
-	threshold = .01
+	threshold = .1
 	p = random.uniform(0, 1)
 	return p < threshold
 

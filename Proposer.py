@@ -128,7 +128,7 @@ class Proposer:
 				# so we return a list of args that replica can use to call accept request
 				# alternative: pass in acceptor on initialize. Possible bug if mem references aren't shared
 				# this function will set seq_num and value accordingly
-				if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != -1):
+				'''if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != ''):
 					print 'HERE'
 					self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
 				#returnList = [True, max_prevVal, max_prevSeqNum]
@@ -137,7 +137,7 @@ class Proposer:
 				# process all queued requests from clients
 				while not self.requests_before_leadership.empty():
 					(value, seq_numb) = self.requests_before_leadership.get()
-					self.acceptRequest(value, seq_numb)
+					self.acceptRequest(value, seq_numb)'''
 
 
 		else:
