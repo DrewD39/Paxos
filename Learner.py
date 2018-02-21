@@ -109,7 +109,7 @@ class Learner:
 			printd("Replica {} is also behind sequence number {}.".format(self.idnum, missing_seq_number))
 			seq_number_found = "False"
 			missing_value = ''
-		msg = "{}:{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, missing_seq_number, missing_value)
+		msg = "{}:{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, missing_seq_number, missing_value)
 		Messenger.broadcast_message(self.connections_list, msg)
 
 

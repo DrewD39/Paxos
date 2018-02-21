@@ -18,11 +18,7 @@ class MessageType(Enum):
 	HEARTBEAT = "9"
 
 def should_drop_message ():
-<<<<<<< HEAD
-	threshold = 0.0
-=======
-	threshold = .1
->>>>>>> 2b0bc04687c81100f8fecbd11b01deb2df043212
+	threshold = 0.05
 	p = random.uniform(0, 1)
 	return p < threshold
 

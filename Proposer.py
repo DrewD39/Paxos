@@ -145,7 +145,7 @@ class Proposer:
 
 					# TODO: We need to send out this value, eventually
 					#self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
-					self.seq_number = int(seq_number)
+					self.seq_number = int(max_prevSeqNum)
 				#returnList = [True, max_prevVal, max_prevSeqNum]
 
 				# Logic to handle skipped seq_number from previous leaders
@@ -170,16 +170,20 @@ class Proposer:
 			self.send_iamleader_message() # Try again to be leader...
 
 
-	def note_missing_value (self, seq_number_found, missing_seq_number):
+	def note_missing_value (self, seq_number_found, learner_id, missing_seq_number):
 		missing_seq_number = int(missing_seq_number)
+		learner_id = int(learner_id)
 		# if this is the first time seeing a missing val at this seq_num
 		if missing_seq_number not in self.missing_vals_of_learners:
-			self.missing_vals_of_learners[missing_seq_number] = 1
+			self.missing_vals_of_learners[missing_seq_number] = []
+			self.missing_vals_of_learners[missing_seq_number].append(learner_id)
 		# if it has already been shown that atleast 1 learner has this value or proposer has already sent NOP
 		elif self.missing_vals_of_learners[missing_seq_number] == -1:
 			return
+		# else if this seq_num, learner_num combo hasn't been seen yet, append learner_num to list
 		else:
-			self.missing_vals_of_learners[missing_seq_number] += 1
+			if learner_id not in self.missing_vals_of_learners[missing_seq_number]:
+				self.missing_vals_of_learners[missing_seq_number].append(learner_id)
 
 		# if the value at seq_num is found in a learner, let the learners resolve it
 		if seq_number_found == "True":
@@ -187,7 +191,7 @@ class Proposer:
 			return
 		elif seq_number_found == "False":
 			# if there is a majority of learners missing this value, send a NOP
-			if self.missing_vals_of_learners[missing_seq_number] >= self.majority_numb:
+			if len(self.missing_vals_of_learners[missing_seq_number]) >= self.majority_numb:
 				full_msg = str(MessageType.COMMAND.value) + ":{},NOP,{},NOP".format(self.leaderNum,missing_seq_number)
 				Messenger.broadcast_message(self.socket_connections_list, full_msg)
 				self.missing_vals_of_learners[missing_seq_number] = -1
