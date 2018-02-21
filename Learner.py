@@ -29,9 +29,6 @@ class Learner:
 
 		if seq > self.last_executed_seq_number or req_id == "NOP": # Else we should ignore
 
-			if req_id == "NOP":
-				printd("NOOPONOANKDSN;FKLA;DSF")
-
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
 
@@ -46,10 +43,10 @@ class Learner:
 				# We shouldn't execute again for this seq_number, and since we've already received
 				# a majority, we're guaranteed to not receive a majority again
 				#self.seq_dict[seq_number] = 0
+				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
 				self.commands_to_execute.put((seq, value, req_id)) # once it is in here is is guaranteed to execute. Eventually.
 				self.reply_to_client(req_id, value)				   # so we can go ahead and reply to the client
 				self.try_to_execute_commands()
-				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
 				del self.seq_dict[seq]
 				return True
 			else:
@@ -81,7 +78,7 @@ class Learner:
 		req_id = command[2]
 
 		self.add_msg_to_chat_log(seq_number, value, req_id)
-		self.last_executed_seq_number = max(self.last_executed_seq_number,int(seq_number))
+		self.last_executed_seq_number += 1#max(self.last_executed_seq_number,int(seq_number))
 
 		printd(str(self.idnum) + " executes commands " + str(command))
 
@@ -122,7 +119,7 @@ class Learner:
 	def fill_missing_value (self, seq_number_found, missing_seq_number, missing_value):
 		#if missing_seq_number in self.missing_vals_of_learners: # if we have not already resolved this issue
 		missing_seq_number = int(missing_seq_number)
-		if seq_number_found == "True":
+		if seq_number_found == "True" and missing_seq_number > self.last_executed_seq_number and missing_seq_number < int(self.commands_to_execute.queue[0][0]): # ignore previous messages
 			#self.chat_log[missing_seq_number] = missing_value
 			# DREW: why is this the case? The last executed command shouldn't change, right? #
 			#self.last_executed_seq_number = missing_seq_number # + 1
@@ -139,8 +136,8 @@ class Learner:
 			# if a majority of learners are also missing this value, let the proposer know
 			#if self.missing_vals_of_learners[missing_seq_number] >= self.majority_numb:
 
-		else:
-			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
+		#else:
+		#	raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
 		#else:
 		#	return # already resolved. no action required.
 
