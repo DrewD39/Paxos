@@ -31,6 +31,8 @@ class Proposer:
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 		self.skips = skips
+		self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
+
 
 
 	def acceptRequest(self, origin_socket, client_name, client_seq_number, value): # value, seq_number, seq_number_override=-1): self.client_name, self.client_seq_number, value
@@ -113,7 +115,7 @@ class Proposer:
 		#returnList = [False]
 		self.follower_collection.append( (int(prev_leaderNum), int(seq_number), last_value) ) # add follower info to collection
 		if not self.am_leader: # if not leader
-			if self.numb_followers >= self.majority_numb:
+			if self.numb_followers >= self.majority_numb: # time to become leader
 				self.am_leader = True
 				printd("Replica {} just became the leader".format(self.idnum))
 				self.seq_number = int(seq_number) # TODO BUG: This seems like a bug....
@@ -146,6 +148,9 @@ class Proposer:
 					self.seq_number = int(seq_number)
 				#returnList = [True, max_prevVal, max_prevSeqNum]
 
+				# Logic to handle skipped seq_number from previous leaders
+
+
 				# TODO: do we need this, or should clients just fail if they send request before leader elected?
 				# process all queued requests from clients
 				#while not self.requests_before_leadership.empty():
@@ -163,6 +168,33 @@ class Proposer:
 		if self.leaderNum <= int(highest_leader_num): # and not self.am_leader:
 			self.leaderNum = int(highest_leader_num) + 1 # Set leader number to one higher so we can be leader
 			self.send_iamleader_message() # Try again to be leader...
+
+
+	def note_missing_value (self, seq_number_found, missing_seq_number):
+		missing_seq_number = int(missing_seq_number)
+		# if this is the first time seeing a missing val at this seq_num
+		if missing_seq_number not in self.missing_vals_of_learners:
+			self.missing_vals_of_learners[missing_seq_number] = 1
+		# if it has already been shown that atleast 1 learner has this value or proposer has already sent NOP
+		elif self.missing_vals_of_learners[missing_seq_number] == -1:
+			return
+		else:
+			self.missing_vals_of_learners[missing_seq_number] += 1
+
+		# if the value at seq_num is found in a learner, let the learners resolve it
+		if seq_number_found == "True":
+			self.missing_vals_of_learners[missing_seq_number] = -1
+			return
+		elif seq_number_found == "False":
+			# if there is a majority of learners missing this value, send a NOP
+			if self.missing_vals_of_learners[missing_seq_number] >= self.majority_numb:
+				full_msg = str(MessageType.COMMAND.value) + ":{},NOP,{},NOP".format(self.leaderNum,missing_seq_number)
+				Messenger.broadcast_message(self.socket_connections_list, full_msg)
+				self.missing_vals_of_learners[missing_seq_number] = -1
+				printd("Leader num {} is proposing NOP at seq_num {}".format(self.leaderNum,self.seq_number))
+		else:
+			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
+
 
 	'''def send_value (self, [idnum OR leaderNum?], seq_number):
 		int_seq_number = int(seq_number)

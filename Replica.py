@@ -21,7 +21,7 @@ import signal, os
 
 class Replica():
 
-	timeout = 3 # value in seconds
+	timeout = 6 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):
@@ -182,6 +182,8 @@ class Replica():
 
 			if cmd != MessageType.HEARTBEAT.value:
 				printd("Replica: {} received cmd = {}, info={}".format(self.idnum, MessageType(cmd).name, info))
+				if MessageType(cmd).name == "REQUEST" and self.proposer and self.proposer.am_leader:
+					printd("...and {} thinks its leader".format(self.idnum))
 
 			if cmd == MessageType.REQUEST.value:
 				# from: Client
@@ -224,7 +226,7 @@ class Replica():
 				# info: leaderNum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3]) # True == majority achieved; False == no majority
-				if ( accepted == True and self.proposer and (int(args[2]) in self.kills) ):
+				if ( accepted == True and self.proposer and ( (int(args[2]) in self.kills) or (int(args[2])-1 in self.skips)) ):
 					# This is just a test of killing the primary again and again
 					printd("\n\nMANUALLY SHUTTING DOWN REPLICA " + str(self.idnum)+'\n')
 					self.active = False
@@ -242,8 +244,10 @@ class Replica():
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner
-				# info: missing_seq_number, missing_value
-				self.learner.fill_missing_value(args[0], args[1])
+				# info: seq_number_found, missing_seq_number, missing_value
+				self.learner.fill_missing_value(args[0], args[1], args[2])
+				if self.proposer:
+					self.proposer.note_missing_value(args[0], args[1])
 			elif cmd == MessageType.HEARTBEAT.value: # Just a HEARTBEAT
 				pass
 			else:
