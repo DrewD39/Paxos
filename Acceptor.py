@@ -16,6 +16,7 @@ class Acceptor:
 		self.accepted_seqNum = -1 # sequence number for the value
 		self.accepted_lastVal = -1 # Last seen value that was proposed
 		self.socket_connections_list = None
+		self.seq_dict = dict()
 		self.idnum = idnum
 		self.learner = learner
 
@@ -43,6 +44,7 @@ class Acceptor:
 		if int(leaderNum) == self.selected_leaderNum:
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
+			self.seq_dict[int(seqNum)] = value
 			self.learner.acceptValue(leaderNum, req_id, seqNum, value)
 			self.send_value(leaderNum, req_id, seqNum, value)
 		else:
@@ -52,6 +54,34 @@ class Acceptor:
 	def send_value (self, leaderNum, req_id, seqNum, value):
 		full_msg = MessageType.ACCEPT.value + ":{},{},{},{}".format(leaderNum,req_id,seqNum,value)
 		Messenger.broadcast_message(self.socket_connections_list, full_msg)
+
+
+	def get_value_at_seq_number (self, missing_seq_number):
+		missing_seq_number = int(missing_seq_number)
+		if missing_seq_number in self.seq_dict.keys():
+			printd("Replica {}'s acceptor is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
+			seq_number_found = "True"
+			missing_value = self.seq_dict[missing_seq_number]
+		else:
+			printd("Replica {}'s accpetor is also behind sequence number {}.".format(self.idnum, missing_seq_number))
+			seq_number_found = "False"
+			missing_value = ''
+
+		return (seq_number_found, self.selected_leaderNum, missing_value)
+
+	def send_value_at_seq_number(self, socket, missing_seq_number):
+		missing_seq_number = int(missing_seq_number)
+		if missing_seq_number in self.seq_dict.keys():
+			printd("Replica {}'s acceptor is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
+			seq_number_found = "True"
+			missing_value = self.seq_dict[missing_seq_number]
+		else:
+			printd("Replica {}'s accpetor is also behind sequence number {}.".format(self.idnum, missing_seq_number))
+			seq_number_found = "False"
+			missing_value = ''
+		msg = "{}:{},{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, self.selected_leaderNum, missing_seq_number, missing_value)
+		#Messenger.broadcast_message(self.connections_list, msg)
+		Messenger.send_message(socket, msg)
 
 
  # accept_value is being used in place of this function. The broadcast cannot be skipped.

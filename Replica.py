@@ -37,6 +37,7 @@ class Replica():
 
 		self.learner = Learner.Learner(self.majority, self.idnum)
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
+		self.learner.set_acceptor(self.acceptor) # This is nauseating...
 
 		self.proposer = None
 		self.should_kill = False
@@ -228,6 +229,8 @@ class Replica():
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3]) # True == majority achieved; False == no majority
 				if ( accepted == True and self.proposer and ( (int(args[2]) in self.kills) or (int(args[2])-1 in self.skips)) ):
 					# This is just a test of killing the primary again and again
+					#if int(args[2])-1 in self.skips:
+					#	del self.skips[int(args[2])-1]
 					printd("\n\nMANUALLY SHUTTING DOWN REPLICA " + str(self.idnum)+'\n')
 					self.active = False
 
@@ -240,14 +243,16 @@ class Replica():
 				# from: Learner
 				# to: Other learners
 				# info: missing_seq_number
-				self.learner.send_value_at_seq_number(origin_socket, args[0])
+				self.acceptor.send_value_at_seq_number(origin_socket, args[0])
+				#self.learner.send_value_at_seq_number(origin_socket, args[0])
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner
-				# info: seq_number_found, learner_id, missing_seq_number, missing_value
-				self.learner.fill_missing_value(args[0], args[2], args[3])
+				# info: seq_number_found, learner_id, leader_num, missing_seq_number, missing_value
+				self.learner.fill_missing_value(args[0], args[2], args[3], args[4])
 				if self.proposer:
-					self.proposer.note_missing_value(args[0], args[1], args[2])
+					self.proposer.note_missing_value(args[0], args[1], args[3])
+
 			elif cmd == MessageType.HEARTBEAT.value: # Just a HEARTBEAT
 				pass
 			else:
