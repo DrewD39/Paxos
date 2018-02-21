@@ -24,7 +24,7 @@ class Replica():
 	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
-	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):
+	def __init__ (self, idnum, ip, port, server_pairs, semaphore, case, proposer=False):
 
 		self.idnum = idnum
 		self.ip = ip
@@ -45,11 +45,11 @@ class Replica():
 		self.skips = []
 		self.kills = []
 
-		for i in test_cases:
-			if i[0] == "kill":	# if kill case active, put the seq_num into kills list
-				self.kills.append(i[1])
-			if i[0] == "skip":	# if skip test case active, put the seq_num into skips list
-				self.skips.append(i[1])
+		if case != None:
+			if case[0] == "kill":	# if kill case active, put the seq_num into kills list
+				self.kills.append(case[1])
+			if case[0] == "skip":	# if skip test case active, put the seq_num into skips list
+				self.skips.append(case[1])
 
 
 	def start_replica (self):
