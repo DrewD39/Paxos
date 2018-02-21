@@ -146,7 +146,7 @@ class Proposer:
 				#	(value, seq_numb) = self.requests_before_leadership.get()
 				#	self.acceptRequest(value, seq_numb)
 
-
+'''
 		else:
 			printd(str(self.idnum) + " was already the leader!")
 		#seq_number = 0 # TODO: actually get sequence number
@@ -157,18 +157,3 @@ class Proposer:
 		if self.leaderNum <= int(highest_leader_num): # and not self.am_leader:
 			self.leaderNum = int(highest_leader_num) + 1 # Set leader number to one higher so we can be leader
 			self.send_iamleader_message() # Try again to be leader...
-
-	'''def send_value (self, [idnum OR leaderNum?], seq_number):
-		int_seq_number = int(seq_number)
-		if self.numb_followers >= self.majority_numb:
-			self.am_leader = True
-			if  self.broadcasted_for_seq_number[int_seq_number] == False:
-				full_msg = str(MessageType.COMMAND.value) + ":" + str([idnum OR leaderNum?]) + "," + str(seq_number) + "," + str(self.value)
-				if self.socket_connections_list:
-					Messenger.broadcast_message(self.socket_connections_list, full_msg)
-				else:
-					print "Socket connections list has not been initialized for the proposer"
-				self.broadcasted_for_seq_number[int_seq_number] = True
-		else:
-			printd("Waiting for majority: " + str(self.numb_followers < self.majority_numb) + ", already_processed: " + str(self.broadcasted_for_seq_number[int_seq_number]) + ", seq_number is: " + str(seq_number))
-			'''

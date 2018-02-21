@@ -29,12 +29,12 @@ class Learner:
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
 
-			if value not in self.seq_dict[seq]:
-				self.seq_dict[seq][value] = 1 # We've now seen one of these values
+			if req_id not in self.seq_dict[seq]:
+				self.seq_dict[seq][req_id] = 1 # We've now seen one of these values
 			else:
-				self.seq_dict[seq][value] += 1 # Increment the number of messages we've seen for this sequence number and value
+				self.seq_dict[seq][req_id] += 1 # Increment the number of messages we've seen for this sequence number and value
 
-			if self.seq_dict[seq][value] == self.majority_numb:
+			if self.seq_dict[seq][req_id] == self.majority_numb:
 				# Execute commnand
 				#self.add_msg_to_chat_log(value)
 				# We shouldn't execute again for this seq_number, and since we've already received
@@ -46,7 +46,7 @@ class Learner:
 				del self.seq_dict[seq]
 				return True
 			else:
-				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][value]))
+				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][req_id]))
 				#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
 				return False
 
@@ -84,7 +84,7 @@ class Learner:
 		if client_name in self.client_mapping: # This client name must be in the client mapping
 			clientsock = self.client_mapping[client_name]
 			printd("Responding to client {} with client_seq_number {}.".format(client_name, client_seq_number))
-			Messenger.send_message(clientsock, value)
+			Messenger.send_message(clientsock, req_id)
 		else:
 			raise RuntimeError("This client name: {}, is not in our mapping for replica {}.".format(client_name, self.idnum))
 
@@ -94,17 +94,18 @@ class Learner:
 
 
 	def send_value_at_seq_number (self, missing_seq_number):
-		if len(self.chat_log) > missing_seq_number:
+		if len(self.chat_log) > int(missing_seq_number):
 			printd("Replica {} is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
 			msg = "{}:{},{}".format(MessageType.MISSING_VALUE, missing_seq_number, self.chat_log[missing_seq_number])
 			Messenger.broadcast_message(self.connections_list, msg)
 		else:
-			printd("Replica {} is also behind sequence number {}.".format(self.idnum, missing_seq_number))
+			printd("Replica {} is also behind sequence number {}, its chat log has length {}.".format(self.idnum, missing_seq_number, len(self.chat_log)))
 
 
 	def fill_missing_value (self, missing_seq_number, missing_value):
+		printd("{} REPLICA IS FILLING MISSING VALUE {} AT SEQ_NUMBER {}.".format(self.idnum, missing_val, missing_seq_number))
 		self.chat_log[missing_seq_number] = missing_value
-		self.last_executed_seq_number = missing_seq_number + 1
+		self.last_executed_seq_number = self.last_executed_seq_number + 1
 
 		self.try_to_execute_commands() # Now try to process commands again
 

@@ -20,7 +20,6 @@ class Client:
         self.connection_sockets = []
         self.msg = None
         self.client_name = client_name
-        self.prev_value = None
 
 
     def connect_to_all_replicas (self):
@@ -59,11 +58,10 @@ class Client:
 
                 message = Messenger.recv_message(s)
 
-                if message == self.prev_value: # Only should accept one message back
+                if int(message.split("-")[1]) < self.client_seq_number: # Only should accept one message back
                     pass
                 elif message is not '':
                     self.client_seq_number += 1 # move on to next client sequence number and next command
-                    self.prev_value = message
                     self.msg = None
                     return message
                 else: # We got a socket disconnection from one of our replicas which means its kaputs for good...
