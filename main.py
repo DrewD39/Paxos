@@ -30,11 +30,13 @@ if __name__ == "__main__":
 	forced_kill = ("kill",5) # force leader to kill itself at seq_num = 3
 	forced_kill2 = ("kill",6) # force leader to kill itself at seq_num = 3
 
-	forced_skip = ("skip",8) # force a skip at seq_num = 2
+	forced_skip = ("skip",8) # force a skip at seq_num = 8
+	forced_skip2 = ("skip",10) # force a skip at seq_num = 8
 
 
-	test_cases = [forced_kill, forced_skip]#, forced_kill]#, forced_kill2]
-
+	#test_cases = [forced_kill, forced_skip]#, forced_kill]#, forced_kill2]
+	#test_cases = [forced_kill, forced_skip]
+	test_cases = [forced_skip, forced_skip2]
 	# Set up fun chat bot TODO: for later
 	'''chatbot = ChatBot(
     	'Ron Obvious',

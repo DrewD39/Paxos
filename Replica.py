@@ -105,6 +105,7 @@ class Replica():
 		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.skips)
 		# socket connections list should now be set up
 		self.proposer.set_socket_list(self.connections_list)
+		self.learner.set_proposer(self.proposer) # Throwing up again...
 		self.proposer.send_iamleader_message()
 
 
@@ -128,7 +129,7 @@ class Replica():
 				#if (int(self.acceptor.selected_leaderNum) + 1) % (len(self.other_replicas)+1) == int(self.idnum): # If we're the next in line
 				printd("Creating a new proposer on replica " + str(self.idnum))
 				self.initialize_proposer()
-					#pass
+				#pass
 
 			# Handle received messages
 			for s in rd:
@@ -205,12 +206,12 @@ class Replica():
 			elif cmd == MessageType.YOU_ARE_LEADER.value:
 				# from: Acceptor
 				# to:   Proposer
-				# args: prev_leaderNum, req_id, seq_number, current value
+				# args: prev_leaderNum, idnum, req_id, seq_number, current value
 				#printd("Received You are Leader message")
 				if not self.proposer:
 					raise RuntimeError("Non-proposer recieved YOU_ARE_LEADER msg")
 				if self.proposer:
-					self.proposer.newFollower(args[0], args[1], args[2])
+					self.proposer.newFollower(args[0], args[1], args[2], args[3])
 
 			elif cmd == MessageType.COMMAND.value:
 				# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
@@ -224,10 +225,10 @@ class Replica():
 				# Acceptor should now send message
 				# from: Acceptor
 				# to: Learner
-				# info: leaderNum, req_id, sequence number, value
+				# info: leaderNum, idnum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
-				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3]) # True == majority achieved; False == no majority
-				if ( accepted == True and self.proposer and ( (int(args[2]) in self.kills) or (int(args[2])-1 in self.skips)) ):
+				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3], args[4]) # True == majority achieved; False == no majority
+				if ( accepted == True and self.proposer and ( (int(args[3]) in self.kills) or (int(args[3])-1 in self.skips)) ):
 					# This is just a test of killing the primary again and again
 					#if int(args[2])-1 in self.skips:
 					#	del self.skips[int(args[2])-1]
@@ -237,8 +238,8 @@ class Replica():
 			elif cmd == MessageType.NACK.value:
 				# from: Acceptor
 				# to: Proposer
-				# info: highest_leader_num
-				self.proposer.set_leader_num(args[0])
+				# info: highest_leader_num, idnum
+				self.proposer.set_leader_num(args[0], args[1])
 			elif cmd == MessageType.CATCHUP.value:
 				# from: Learner
 				# to: Other learners

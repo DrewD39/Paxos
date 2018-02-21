@@ -3,6 +3,8 @@ import Messenger
 from Messenger import MessageType
 from Util import printd
 import Queue
+from collections import defaultdict
+
 '''
 	Proposer class of Paxos
 	A proposer will broadcast messages to all acceptors (either IAmLeader or Command)
@@ -19,7 +21,7 @@ class Proposer:
 		self.am_leader = False
 		self.majority_numb = majority_numb
 		# I think this can be equal to one since we can count ourselves
-		self.numb_followers = 1
+		self.followers = set()
 		self.seq_number = -1
 		#self.requests_before_leadership = Queue.Queue()
 		self.idnum = idnum
@@ -31,7 +33,7 @@ class Proposer:
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 		self.skips = skips
-		self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
+		self.missing_vals_of_learners = defaultdict(set) # dict of key: seq_num -> val: number of learners missing the value at this seq_num
 
 
 
@@ -48,29 +50,19 @@ class Proposer:
 			self.seq_number = seq_number_override'''
 
 
-		repeated_command = False
-
 		#if ( (client_name,client_seq_number) not in self.request_history ):  # if you've never seen this client_name, client_seq_num pair, it is a new request
 		self.seq_number += 1
-		if self.seq_number in self.skips:
+		if self.seq_number in self.skips: 		# skip logic: set up leader 0 to skip seq_num 3, then be killed on seq_num 5
 			printd("MANUALLY SKIPPING SEQ_NUM {}".format(self.seq_number))
 			self.seq_number += 1
 
 		self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
 
-		# skip logic: set up leader 0 to skip seq_num 3, then be killed on seq_num 5
-
-		#else: # else need to re-propose this message with the original sequence number
-		#repeated_command = True
-
 
 		if self.am_leader == True:
 			msg =  str(self.leaderNum)
 			msg += "," + req_id
-			if not repeated_command:
-				msg += "," + str(self.seq_number)
-			else:
-				msg += "," + str(self.request_history[(client_name,client_seq_number)][1]) # use the original seq_num for this unique command request
+			msg += "," + str(self.seq_number)
 			msg += "," + str(self.value)
 			full_msg = str(MessageType.COMMAND.value) + ":" + msg
 
@@ -82,14 +74,15 @@ class Proposer:
 
 		#else: # if not yet leader
 		#	self.requests_before_leadership.put((value, self.seq_number))
-		#	printd("Request queued because we're not the agreed upon leader yet")
+			#printd("Request queued because we're not the agreed upon leader yet")
 
 
 	def send_iamleader_message(self):
 		# msg should be: leadernum
 		self.follower_collection = []
 		# need to add its own acceptor to collection
-		self.numb_followers = 1
+		self.followers = set()
+		self.followers.add(self.idnum) # Let's include ourselves
 		self.am_leader = False
 		if self.acceptor.selected_leaderNum > self.leaderNum:
 			self.leaderNum = self.acceptor.leaderNum
@@ -108,20 +101,21 @@ class Proposer:
 
 
 	# potential bug: do we need to pass in leaderNum with ACCEPT message?
-	def newFollower (self, prev_leaderNum, seq_number, last_value):
-		self.numb_followers += 1 # We have another follower who's joined us
+	def newFollower (self, prev_leaderNum, acceptor_id, seq_number, last_value):
 		#returnList = [False]
 		self.follower_collection.append( (int(prev_leaderNum), int(seq_number), last_value) ) # add follower info to collection
-		if not self.am_leader: # if not leader
-			if self.numb_followers >= self.majority_numb: # time to become leader
+		if not self.am_leader and acceptor_id not in self.followers: # if not leader
+
+			self.followers.add(acceptor_id) # We have another follower who's joined us
+
+			if len(self.followers) == self.majority_numb: # time to become leader since we have enough followers
 				self.am_leader = True
-				printd("Replica {} just became the leader".format(self.idnum))
 				self.seq_number = int(seq_number) # TODO BUG: This seems like a bug....
 				# need to decide most relavant last value.
 				# find follower with highest prevLeaderNum. Break ties with seq_num, then val.
 				max_prevLeader = -1; max_prevSeqNum = -1; max_prevVal = '';
 				for i in self.follower_collection:
-					if i[0] > max_prevLeader:
+					if i[0] > max_prevLeader: # if prev_leaderNum > max_prevLeader
 						max_prevLeader = i[0]
 						max_prevSeqNum = i[1]
 						max_prevVal =    i[2]
@@ -142,7 +136,10 @@ class Proposer:
 					# TODO: We need to send out this value, eventually
 					#self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
 					self.seq_number = int(max_prevSeqNum)
-					#pass
+					self.value = max_prevVal
+
+				printd("Replica {} just became the leader with value = {} and sequence number = {}".format(self.idnum, self.value, seq_number))
+
 				#returnList = [True, max_prevVal, max_prevSeqNum]
 
 				# Logic to handle skipped seq_number from previous leaders
@@ -161,40 +158,36 @@ class Proposer:
 		#self.proposer.send_value(self.idnum, seq_number)
 
 
-	def set_leader_num (self, highest_leader_num):
+	def set_leader_num (self, highest_leader_num, idnum):
 		if self.leaderNum <= int(highest_leader_num): # and not self.am_leader:
 			self.leaderNum = int(highest_leader_num) + 1 # Set leader number to one higher so we can be leader
 			self.send_iamleader_message() # Try again to be leader...
 
 
 	def note_missing_value (self, seq_number_found, learner_id, missing_seq_number):
+		printd("NOTE MISSING VALUE {}".format(missing_seq_number))
 		missing_seq_number = int(missing_seq_number)
 		learner_id = int(learner_id)
 		# if this is the first time seeing a missing val at this seq_num
-		if missing_seq_number not in self.missing_vals_of_learners:
-			self.missing_vals_of_learners[missing_seq_number] = []
-			self.missing_vals_of_learners[missing_seq_number].append(learner_id)
-		# if it has already been shown that atleast 1 learner has this value or proposer has already sent NOP
-		elif self.missing_vals_of_learners[missing_seq_number] == -1:
-			return
-		# else if this seq_num, learner_num combo hasn't been seen yet, append learner_num to list
-		else:
-			if learner_id not in self.missing_vals_of_learners[missing_seq_number]:
-				self.missing_vals_of_learners[missing_seq_number].append(learner_id)
+
+		self.missing_vals_of_learners[missing_seq_number].add(learner_id)
 
 		# if the value at seq_num is found in a learner, let the learners resolve it
 		if seq_number_found == "True":
-			self.missing_vals_of_learners[missing_seq_number] = -1
+			self.missing_vals_of_learners[missing_seq_number] = set()
 			return
 		elif seq_number_found == "False":
 			# if there is a majority of learners missing this value, send a NOP
 			print self.missing_vals_of_learners[missing_seq_number]
-			if len(self.missing_vals_of_learners[missing_seq_number]) + 1 >= self.majority_numb: # Count ourselves too
+			if len(self.missing_vals_of_learners[missing_seq_number]) >= self.majority_numb: # Count ourselves too
 				self.acceptor.accept_value(self.leaderNum, "NOP", missing_seq_number, "NOP") # We should also accept a value locally
+				if int(missing_seq_number) == self.seq_number + 1:
+					printd("INCREMENTING SEQ NUMBER IN PROPOSER")
+					self.seq_number += 1
 
 				full_msg = str(MessageType.COMMAND.value) + ":{},NOP,{},NOP".format(self.leaderNum,missing_seq_number)
 				Messenger.broadcast_message(self.socket_connections_list, full_msg)
-				self.missing_vals_of_learners[missing_seq_number] = -1
+				self.missing_vals_of_learners[missing_seq_number] = set()
 				printd("Leader num {} is proposing NOP at seq_num {}".format(self.leaderNum,missing_seq_number))
 		else:
 			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")

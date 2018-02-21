@@ -17,7 +17,7 @@ class Learner:
 		self.chat_log = [] # nvm # key: seq_num -> val: value
 		self.majority_numb = majority_numb
 		# I think this should be equal to 1 since we can count ourselves in the majority
-		self.seq_dict = dict() # This is a mapping of sequence number -> dictionary with key = value -> count
+		self.seq_dict = defaultdict(set) # This is a mapping of sequence number -> dictionary with key = value -> count
 		self.commands_to_execute = PriorityQueue()
 		self.last_executed_seq_number = - 1 # We haven't executed any commands yet
 		self.idnum = idnum
@@ -25,24 +25,24 @@ class Learner:
 		self.connections_list = None
 		self.prev_leader_nums = defaultdict(list)
 		self.acceptor = None
+		self.proposer = None
 		self.accepted_seq_numbs = dict()
 		#self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
 
 
-	def acceptValue (self, leaderNum, req_id, seq_number, value):
+	def acceptValue (self, leaderNum, idnum, req_id, seq_number, value):
 		seq = int(seq_number)
 
 		if seq > self.last_executed_seq_number:# or req_id == "NOP": # Else we should ignore
 
-			if seq not in self.seq_dict.keys():
-				self.seq_dict[seq] = dict()
+			#if seq not in self.seq_dict.keys():
+			#	self.seq_dict[seq] = dict()
 
-			if req_id not in self.seq_dict[seq]:
-				self.seq_dict[seq][req_id] = 1 # We've now seen one of these values
-			else:
-				self.seq_dict[seq][req_id] += 1 # Increment the number of messages we've seen for this sequence number and value
+			self.seq_dict[seq].add(int(idnum)) # We've now seen one of these values
+			#else:
+				#self.seq_dict[seq][req_id] += 1 # Increment the number of messages we've seen for this sequence number and value
 
-			if self.seq_dict[seq][req_id] == self.majority_numb and seq not in self.accepted_seq_numbs:
+			if len(self.seq_dict[seq]) == self.majority_numb:
 				# Execute commnand
 				#self.add_msg_to_chat_log(value)
 				# We shouldn't execute again for this seq_number, and since we've already received
@@ -56,7 +56,7 @@ class Learner:
 				del self.seq_dict[seq]
 				return True
 			else:
-				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][req_id]))
+				printd("{} cannot execute for {},{} because we've only seen messages from{}.".format(self.idnum, seq_number, value, self.seq_dict[seq]))
 				#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
 				return False
 
@@ -65,19 +65,29 @@ class Learner:
 		self.acceptor = acceptor
 
 
+	def set_proposer(self, proposer):
+		self.proposer = proposer
+
+
 	def try_to_execute_commands (self):
 
 		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
-			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
+			printd("Replica {} sending catchup because it's missing {}.".format(self.idnum, self.last_executed_seq_number + 1).upper())
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
 			(seq_number_found, leader_num, missing_value) = self.acceptor.get_value_at_seq_number(self.last_executed_seq_number + 1)
 			self.fill_missing_value(seq_number_found, leader_num, self.last_executed_seq_number + 1, missing_value)
+			if self.proposer:
+				self.proposer.note_missing_value(seq_number_found, self.idnum, self.last_executed_seq_number + 1
+				)
+			else:
+				printd("NO PROPOSER FOR " + str(self.idnum))
+
 			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
 			return
-		else:
-			print "Replica {} has queue {}.".format(self.idnum, self.commands_to_execute.queue)
+		#else:
+			#print "Replica {} has queue {}.".format(self.idnum, self.commands_to_execute.queue)
 
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
@@ -114,35 +124,20 @@ class Learner:
 		self.client_mapping[clientname] = clientsock
 
 
-'''	def send_value_at_seq_number (self, socket, missing_seq_number):
-		missing_seq_number = int(missing_seq_number)
-		if len(self.chat_log) > missing_seq_number:
-			printd("Replica {} is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
-			seq_number_found = "True"
-			missing_value = self.chat_log[missing_seq_number]
-		else:
-			printd("Replica {} is also behind sequence number {}.".format(self.idnum, missing_seq_number))
-			seq_number_found = "False"
-			missing_value = ''
-		msg = "{}:{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, missing_seq_number, missing_value)
-		#Messenger.broadcast_message(self.connections_list, msg)
-		Messenger.send_message(socket, msg)
-'''
-
-
 	def add_and_execute_seq_command (self, seq_number, value, req_id):
 		if seq_number not in self.accepted_seq_numbs:
 			self.accepted_seq_numbs[seq_number] = True
 			self.commands_to_execute.put((seq_number, value, "NONE"))
 			self.try_to_execute_commands() # Now try to process commands again
 
+
 	def fill_missing_value (self, seq_number_found, leader_num, missing_seq_number, missing_value):
 		#if missing_seq_number in self.missing_vals_of_learners: # if we have not already resolved this issue
 		if seq_number_found == "True":
 			self.prev_leader_nums[missing_seq_number].append((leader_num, missing_value))
-			printd("IN MISSING VALUE, LEN = {}".format(len(self.prev_leader_nums[missing_seq_number])+1))
+			printd("IN MISSING VALUE, LEN = {}".format(len(self.prev_leader_nums[missing_seq_number])))
 
-		if missing_seq_number in self.prev_leader_nums and len(self.prev_leader_nums[missing_seq_number]) + 1 == self.majority_numb:
+		if missing_seq_number in self.prev_leader_nums and len(self.prev_leader_nums[missing_seq_number]) == self.majority_numb:
 			value = max(self.prev_leader_nums[missing_seq_number], key=itemgetter(0))[1]
 			del self.prev_leader_nums[missing_seq_number]
 
@@ -160,6 +155,7 @@ class Learner:
 
 			elif seq_number_found == "False":
 				return
+
 		#else:
 			#print("{}, {}.".format(missing_seq_number, self.commands_to_execute.queue))
 			# DREW: decided to move this logic to proposer. Will delete...
@@ -180,7 +176,7 @@ class Learner:
 	def add_msg_to_chat_log (self, seq_number, msg, req_id):
 		#if req_id == "NOP":
 		#	return # do not perform any execution on a NOP
-		self.chat_log.append(msg)
+		self.chat_log.append(str(seq_number) + "|" + msg)
 		# TODO: just for debugging, later remove this
 		#print self.get_chat_log()
 
@@ -195,4 +191,5 @@ class Learner:
 		#for i in range(0, self.last_executed_seq_number+1):
 		#	if i in self.chat_log:
 		#		chat_log_list.append(self.chat_log[i])
-		return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))
+		#return ("Chat log for " + str(self.idnum) + ":\n\t" + '\n\t'.join(self.chat_log))
+		return "\n\t" + '\n\t'.join(self.chat_log)
