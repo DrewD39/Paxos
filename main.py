@@ -26,10 +26,11 @@ if __name__ == "__main__":
 
 	print config
 
-	forced_skip = ("skip",2) # force a skip at seq_num = 2
 
 	forced_kill = ("kill",5) # force leader to kill itself at seq_num = 3
 	forced_kill2 = ("kill",6) # force leader to kill itself at seq_num = 3
+
+	forced_skip = ("skip",8) # force a skip at seq_num = 2
 
 
 	test_cases = [forced_kill, forced_skip]#, forced_kill]#, forced_kill2]
@@ -48,16 +49,23 @@ if __name__ == "__main__":
 	semaphore = Semaphore(0)
 	rep_0 = None
 	processes = []
+	case_num = 0
 	for idnum, pair in enumerate(config.server_pairs):
 		if idnum == 0: # Create a single proposer with replica 0 as the primary
 			has_proposer = True
 		else:
 			has_proposer = False
 
-		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, test_cases, proposer=has_proposer)
+		if case_num < len(test_cases):
+			case = test_cases[case_num]
+		else:
+			case = None
+
+		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, case, proposer=has_proposer)
 
 		processes.append(Process(target=replica.start_replica))
 		processes[idnum].start()
+		case_num += 1
 
 	# After starting all processes, we should wait for them all to connect to each other
 	# before sending any messages
