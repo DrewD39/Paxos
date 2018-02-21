@@ -28,6 +28,10 @@ class Learner:
 		seq = int(seq_number)
 
 		if seq > self.last_executed_seq_number or req_id == "NOP": # Else we should ignore
+
+			if req_id == "NOP":
+				printd("NOOPONOANKDSN;FKLA;DSF")
+
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
 
@@ -59,6 +63,7 @@ class Learner:
 		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
+			print(self.commands_to_execute.queue)
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
 			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
@@ -99,7 +104,7 @@ class Learner:
 		self.client_mapping[clientname] = clientsock
 
 
-	def send_value_at_seq_number (self, missing_seq_number):
+	def send_value_at_seq_number (self, socket, missing_seq_number):
 		missing_seq_number = int(missing_seq_number)
 		if len(self.chat_log) > missing_seq_number:
 			printd("Replica {} is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
@@ -110,7 +115,8 @@ class Learner:
 			seq_number_found = "False"
 			missing_value = ''
 		msg = "{}:{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, missing_seq_number, missing_value)
-		Messenger.broadcast_message(self.connections_list, msg)
+		Messenger.send_message(socket, msg)
+		#Messenger.broadcast_message(self.connections_list, msg)
 
 
 	def fill_missing_value (self, seq_number_found, missing_seq_number, missing_value):

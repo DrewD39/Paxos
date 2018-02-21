@@ -21,7 +21,7 @@ import signal, os
 
 class Replica():
 
-	timeout = 6 # value in seconds
+	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):
@@ -240,7 +240,7 @@ class Replica():
 				# from: Learner
 				# to: Other learners
 				# info: missing_seq_number
-				self.learner.send_value_at_seq_number(args[0])
+				self.learner.send_value_at_seq_number(origin_socket, args[0])
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner

@@ -141,11 +141,9 @@ class Proposer:
 				# alternative: pass in acceptor on initialize. Possible bug if mem references aren't shared
 				# this function will set seq_num and value accordingly
 				if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != ''):
-					print 'HERE'
-
 					# TODO: We need to send out this value, eventually
 					#self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
-					self.seq_number = int(seq_number)
+					self.seq_number = int(max_prevSeqNum)
 				#returnList = [True, max_prevVal, max_prevSeqNum]
 
 				# Logic to handle skipped seq_number from previous leaders
