@@ -58,7 +58,7 @@ class Client:
 
                 message = Messenger.recv_message(s)
 
-                if int(message.split("-")[1]) < self.client_seq_number: # Only should accept one message back
+                if int(message.split('-')[1]) < int(self.client_seq_number): # Only should accept one message back
                     pass
                 elif message is not '':
                     self.client_seq_number += 1 # move on to next client sequence number and next command
@@ -92,4 +92,4 @@ class Client:
             recvd_msg = str(self.recv_message())
             printd("Client received message {}.".format(recvd_msg))
             #self.client_seq_number += 1 # move on to next client sequence number and next command
-            #time.sleep(1)
+            time.sleep(.1)

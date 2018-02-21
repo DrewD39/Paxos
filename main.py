@@ -26,6 +26,14 @@ if __name__ == "__main__":
 
 	print config
 
+	forced_skip = ("skip",2) # force a skip at seq_num = 2
+
+	forced_kill = ("kill",3) # force leader to kill itself at seq_num = 3
+	forced_kill2 = ("kill",6) # force leader to kill itself at seq_num = 3
+
+
+	test_cases = [forced_kill, forced_kill2]#[forced_kill,forced_skip]
+
 	# Set up fun chat bot TODO: for later
 	'''chatbot = ChatBot(
     	'Ron Obvious',
@@ -46,7 +54,7 @@ if __name__ == "__main__":
 		else:
 			has_proposer = False
 
-		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, proposer=has_proposer)
+		replica = Replica(idnum, pair[0], pair[1], config.server_pairs, semaphore, test_cases, proposer=has_proposer)
 
 		processes.append(Process(target=replica.start_replica))
 		processes[idnum].start()
