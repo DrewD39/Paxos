@@ -21,7 +21,7 @@ import signal, os
 
 class Replica():
 
-	timeout = 6 # value in seconds
+	timeout = 1 # value in seconds
 	active = True # Replica is up and running
 
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):

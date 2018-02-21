@@ -74,7 +74,7 @@ class Learner:
 		req_id = command[2]
 
 		self.add_msg_to_chat_log(seq_number, value, req_id)
-		self.last_executed_seq_number = max(self.last_executed_seq_number,int(seq_number))
+		self.last_executed_seq_number = int(seq_number)
 
 		printd(str(self.idnum) + " executes commands " + str(command))
 
