@@ -31,12 +31,12 @@ class Learner:
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
 
-			if value not in self.seq_dict[seq]:
-				self.seq_dict[seq][value] = 1 # We've now seen one of these values
+			if req_id not in self.seq_dict[seq]:
+				self.seq_dict[seq][req_id] = 1 # We've now seen one of these values
 			else:
-				self.seq_dict[seq][value] += 1 # Increment the number of messages we've seen for this sequence number and value
+				self.seq_dict[seq][req_id] += 1 # Increment the number of messages we've seen for this sequence number and value
 
-			if self.seq_dict[seq][value] == self.majority_numb:
+			if self.seq_dict[seq][req_id] == self.majority_numb:
 				# Execute commnand
 				#self.add_msg_to_chat_log(value)
 				# We shouldn't execute again for this seq_number, and since we've already received
@@ -49,18 +49,20 @@ class Learner:
 				del self.seq_dict[seq]
 				return True
 			else:
-				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][value]))
+				printd("{} cannot execute for {},{} because we've only seen {} messages.".format(self.idnum, seq_number, value, self.seq_dict[seq][req_id]))
 				#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
 				return False
 
 
 	def try_to_execute_commands (self):
 
-		for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
+		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
+		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
-			msg = "{}:{}".format(MessageType.CATCHUP.value, i)
+			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
+			return
 
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
@@ -115,9 +117,9 @@ class Learner:
 		#if missing_seq_number in self.missing_vals_of_learners: # if we have not already resolved this issue
 		missing_seq_number = int(missing_seq_number)
 		if seq_number_found == "True":
-			self.chat_log[missing_seq_number] = missing_value
+			#self.chat_log[missing_seq_number] = missing_value
 			# DREW: why is this the case? The last executed command shouldn't change, right? #
-			self.last_executed_seq_number = missing_seq_number + 1
+			#self.last_executed_seq_number = missing_seq_number # + 1
 
 			#del self.missing_vals_of_learners[missing_seq_number]
 			printd("A different learner had the missing value. Fixing internal to the learners")
@@ -135,7 +137,6 @@ class Learner:
 			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
 		#else:
 		#	return # already resolved. no action required.
-
 
 
 	def set_socket_list (self, connections_list):
