@@ -240,7 +240,7 @@ class Replica():
 				# from: Learner
 				# to: Other learners
 				# info: missing_seq_number
-				self.learner.send_value_at_seq_number(args[0])
+				self.learner.send_value_at_seq_number(origin_socket, args[0])
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner

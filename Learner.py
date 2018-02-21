@@ -28,6 +28,10 @@ class Learner:
 		seq = int(seq_number)
 
 		if seq > self.last_executed_seq_number or req_id == "NOP": # Else we should ignore
+
+			if req_id == "NOP":
+				printd("NOOPONOANKDSN;FKLA;DSF")
+
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
 
@@ -42,10 +46,11 @@ class Learner:
 				# We shouldn't execute again for this seq_number, and since we've already received
 				# a majority, we're guaranteed to not receive a majority again
 				#self.seq_dict[seq_number] = 0
+				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
+
 				self.commands_to_execute.put((seq, value, req_id)) # once it is in here is is guaranteed to execute. Eventually.
 				self.reply_to_client(req_id, value)				   # so we can go ahead and reply to the client
 				self.try_to_execute_commands()
-				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
 				del self.seq_dict[seq]
 				return True
 			else:
@@ -59,6 +64,7 @@ class Learner:
 		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
+			print(self.commands_to_execute.queue)
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
 			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
@@ -99,7 +105,7 @@ class Learner:
 		self.client_mapping[clientname] = clientsock
 
 
-	def send_value_at_seq_number (self, missing_seq_number):
+	def send_value_at_seq_number (self, socket, missing_seq_number):
 		missing_seq_number = int(missing_seq_number)
 		if len(self.chat_log) > missing_seq_number:
 			printd("Replica {} is sending value for sequence number {}.".format(self.idnum, missing_seq_number))
