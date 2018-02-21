@@ -244,10 +244,10 @@ class Replica():
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner
-				# info: seq_number_found, missing_seq_number, missing_value
-				self.learner.fill_missing_value(args[0], args[1], args[2])
+				# info: seq_number_found, learner_id, missing_seq_number, missing_value
+				self.learner.fill_missing_value(args[0], args[2], args[3])
 				if self.proposer:
-					self.proposer.note_missing_value(args[0], args[1])
+					self.proposer.note_missing_value(args[0], args[1], args[2])
 			elif cmd == MessageType.HEARTBEAT.value: # Just a HEARTBEAT
 				pass
 			else:

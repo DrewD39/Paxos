@@ -27,7 +27,7 @@ class Learner:
 	def acceptValue (self, leaderNum, req_id, seq_number, value):
 		seq = int(seq_number)
 
-		if seq > self.last_executed_seq_number or req_id == "NOP": # Else we should ignore
+		if seq > self.last_executed_seq_number:# or req_id == "NOP": # Else we should ignore
 
 			if seq not in self.seq_dict.keys():
 				self.seq_dict[seq] = dict()
@@ -44,6 +44,7 @@ class Learner:
 				# a majority, we're guaranteed to not receive a majority again
 				#self.seq_dict[seq_number] = 0
 				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
+
 				self.commands_to_execute.put((seq, value, req_id)) # once it is in here is is guaranteed to execute. Eventually.
 				self.reply_to_client(req_id, value)				   # so we can go ahead and reply to the client
 				self.try_to_execute_commands()
@@ -60,11 +61,12 @@ class Learner:
 		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} could execute command {} but it's missing {}.".format(self.idnum, self.commands_to_execute.queue[0][0], self.last_executed_seq_number + 1))
-			print(self.commands_to_execute.queue)
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
 			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
 			return
+		else:
+			print self.commands_to_execute.queue
 
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
@@ -111,9 +113,9 @@ class Learner:
 			printd("Replica {} is also behind sequence number {}.".format(self.idnum, missing_seq_number))
 			seq_number_found = "False"
 			missing_value = ''
-		msg = "{}:{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, missing_seq_number, missing_value)
-		Messenger.send_message(socket, msg)
+		msg = "{}:{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, missing_seq_number, missing_value)
 		#Messenger.broadcast_message(self.connections_list, msg)
+		Messenger.send_message(socket, msg)
 
 
 	def fill_missing_value (self, seq_number_found, missing_seq_number, missing_value):
@@ -131,6 +133,8 @@ class Learner:
 
 		elif seq_number_found == "False":
 			return
+		else:
+			print("{}, {}.".format(missing_seq_number, self.commands_to_execute.queue))
 			# DREW: decided to move this logic to proposer. Will delete...
 			#self.missing_vals_of_learners[missing_seq_number] += 1
 			# if a majority of learners are also missing this value, let the proposer know
@@ -151,7 +155,7 @@ class Learner:
 		#	return # do not perform any execution on a NOP
 		self.chat_log.append(msg)
 		# TODO: just for debugging, later remove this
-		print self.get_chat_log()
+		#print self.get_chat_log()
 
 		# I want to open a file a single time but I'm not sure how to ensure we close it at the end
 		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
