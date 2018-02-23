@@ -31,11 +31,12 @@ class Replica():
 		self.port = int(port)
 		self.semaphore = semaphore # This semaphore is shared with all processes to wait till all connections are made
 
+		self.num_replicas = len(server_pairs)
 		self.majority = (len(server_pairs) // 2) + 1 # interger division rounds down, so add one
 
 		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
 
-		self.learner = Learner.Learner(self.majority, self.idnum)
+		self.learner = Learner.Learner(self.num_replicas, self.majority, self.idnum)
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
 		self.learner.set_acceptor(self.acceptor) # This is nauseating...
 
@@ -219,7 +220,7 @@ class Replica():
 				# to:   Acceptor
 				# args: leaderNum, req_id, seqNum, value
 				self.acceptor.accept_value(args[0], args[1], args[2], args[3])
-				printd("Received command message to replica id " + str(self.idnum) + " has leader id " + str(int(self.acceptor.selected_leaderNum)))
+				printd("Received command message to replica id " + str(self.idnum) + " has leader num " + str(int(self.acceptor.selected_leaderNum)))
 
 			elif cmd == MessageType.ACCEPT.value:
 				# Acceptor should now send message
@@ -249,8 +250,8 @@ class Replica():
 			elif cmd == MessageType.MISSING_VALUE.value:
 				# from: Other learners
 				# to : Learner
-				# info: seq_number_found, learner_id, leader_num, missing_seq_number, missing_value
-				self.learner.fill_missing_value(args[0], args[2], args[3], args[4])
+				# info: seq_number_found, self.idnum, missing_req_id, missing_seq_number, missing_value
+				self.learner.fill_missing_value(args[0], args[1], args[2], args[3], args[4])
 				if self.proposer:
 					self.proposer.note_missing_value(args[0], args[1], args[3])
 

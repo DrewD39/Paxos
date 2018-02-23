@@ -22,7 +22,8 @@ if __name__ == "__main__":
 	elif args.tolerated_faults and args.server_pairs and args.parameters: # from CL
 		config = Config(None, args.tolerated_faults, args.server_pairs, args.parameters)
 	else: # just use default values
-		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007)", None)
+		#config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007)", None)
+		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007), (127.0.0.1,4008),(127.0.0.1,4009),(127.0.0.1,4010),(127.0.0.1,4011),(127.0.0.1,4012)", None)
 
 	print config
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
 
 	#test_cases = [forced_kill, forced_skip]#, forced_kill]#, forced_kill2]
 	#test_cases = [forced_kill, forced_skip]
-	test_cases = [forced_skip, forced_skip2]
+	test_cases = [forced_kill2]
 	# Set up fun chat bot TODO: for later
 	'''chatbot = ChatBot(
     	'Ron Obvious',
@@ -85,7 +86,7 @@ if __name__ == "__main__":
 	msg1 = "XXXXXXXX"
 	msg2 = "ZZZZZZZZ"
 
-	num_messages = 100
+	num_messages = 20
 
 	time.sleep(1)
 

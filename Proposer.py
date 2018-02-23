@@ -165,6 +165,7 @@ class Proposer:
 
 
 	def note_missing_value (self, seq_number_found, learner_id, missing_seq_number):
+
 		printd("NOTE MISSING VALUE {}".format(missing_seq_number))
 		missing_seq_number = int(missing_seq_number)
 		learner_id = int(learner_id)
@@ -180,7 +181,7 @@ class Proposer:
 			# if there is a majority of learners missing this value, send a NOP
 			print self.missing_vals_of_learners[missing_seq_number]
 			if len(self.missing_vals_of_learners[missing_seq_number]) >= self.majority_numb: # Count ourselves too
-				self.acceptor.accept_value(self.leaderNum, "NOP", missing_seq_number, "NOP") # We should also accept a value locally
+				self.acceptor.accept_value(self.leaderNum, "NOP-SHOULD NOT HAPPEN", missing_seq_number, "NOP-SHOULD NOT HAPPEN") # We should also accept a value locally
 				if int(missing_seq_number) == self.seq_number + 1:
 					printd("INCREMENTING SEQ NUMBER IN PROPOSER")
 					self.seq_number += 1
@@ -191,6 +192,7 @@ class Proposer:
 				printd("Leader num {} is proposing NOP at seq_num {}".format(self.leaderNum,missing_seq_number))
 		else:
 			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
+		
 
 
 	'''def send_value (self, [idnum OR leaderNum?], seq_number):

@@ -17,6 +17,7 @@ class Acceptor:
 		self.accepted_lastVal = -1 # Last seen value that was proposed
 		self.socket_connections_list = None
 		self.seq_dict = dict()
+		#self.req_dict = dict() #D2 # dict mapping req_id -> seq_num ## if you've already seen this reqeust, do a NOP
 		self.idnum = idnum
 		self.learner = learner
 
@@ -44,14 +45,23 @@ class Acceptor:
 		# TODO: could be bug to not have greather than or equal...
 		# int(seqNum) not in self.seq_dict:#
 		#if int(leaderNum) >= self.selected_leaderNum and int(seqNum) > int(self.accepted_seqNum):
+		seqNum = int(seqNum)
 		if int(leaderNum) >= self.selected_leaderNum and int(seqNum) not in self.seq_dict:
+			# D2
+			#if req_id in self.req_dict and self.req_dict[req_id] != int(seqNum): # if you already gave this req_id a different seq_num, send a NOP for this seq_num
+			#	self.learner.acceptValue(leaderNum, self.idnum, "NOP", seqNum, "NOP")
+			#	self.send_value(leaderNum, "NOP", seqNum, "NOP")
+			#else: # else accept as usual
 			self.accepted_lastVal = value
 			self.accepted_seqNum = seqNum
-			self.seq_dict[int(seqNum)] = value
+			self.seq_dict[int(seqNum)] = (req_id, value)
 			self.learner.acceptValue(leaderNum, self.idnum, req_id, seqNum, value)
 			self.send_value(leaderNum, req_id, seqNum, value)
+			#self.req_dict[req_id] = int(seqNum) #D2
 		else:
 			printd("Acceptor {} has not selected leader, leaderNum = {} and sequence number = {}, while message has been proposed from leaderNum: {} with seq_number {}".format(self.idnum, self.selected_leaderNum, self.accepted_seqNum, leaderNum, seqNum))
+
+
 
 	def send_value (self, leaderNum, req_id, seqNum, value):
 		full_msg = MessageType.ACCEPT.value + ":{},{},{},{},{}".format(leaderNum, self.idnum, req_id, seqNum, value)
@@ -61,15 +71,17 @@ class Acceptor:
 	def get_value_at_seq_number (self, missing_seq_number):
 		missing_seq_number = int(missing_seq_number)
 		if missing_seq_number in self.seq_dict.keys():
-			printd("Replica {}'s acceptor is sending value {} for sequence number {}.".format(self.idnum, self.seq_dict[missing_seq_number], missing_seq_number))
+			printd("Replica {}'s acceptor is sending value {} for sequence number {}.".format(self.idnum, self.seq_dict[missing_seq_number][1], missing_seq_number))
 			seq_number_found = "True"
-			missing_value = self.seq_dict[missing_seq_number]
+			missing_req_id = self.seq_dict[missing_seq_number][0]
+			missing_value = self.seq_dict[missing_seq_number][1]
 		else:
 			printd("Replica {}'s accpetor is also behind sequence number {}.".format(self.idnum, missing_seq_number))
 			seq_number_found = "False"
+			missing_req_id = "NONE"
 			missing_value = ''
 
-		return (seq_number_found, self.selected_leaderNum, missing_value)
+		return ( seq_number_found, missing_req_id, missing_value)
 
 
 	def send_value_at_seq_number(self, socket, missing_seq_number):
@@ -77,12 +89,14 @@ class Acceptor:
 		if missing_seq_number in self.seq_dict.keys():
 			printd("Replica {}'s acceptor is sending value {} for sequence number {}.".format(self.idnum, self.seq_dict[missing_seq_number], missing_seq_number))
 			seq_number_found = "True"
-			missing_value = self.seq_dict[missing_seq_number]
+			missing_req_id = self.seq_dict[missing_seq_number][0]
+			missing_value = self.seq_dict[missing_seq_number][1]
 		else:
 			printd("Replica {}'s acceptor is also behind sequence number {}.".format(self.idnum, missing_seq_number))
 			seq_number_found = "False"
+			missing_req_id = "NONE"
 			missing_value = ''
-		msg = "{}:{},{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, self.selected_leaderNum, missing_seq_number, missing_value)
+		msg = "{}:{},{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, missing_req_id, missing_seq_number, missing_value)
 		#Messenger.broadcast_message(self.connections_list, msg)
 		Messenger.send_message(socket, msg)
 

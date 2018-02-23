@@ -1,5 +1,8 @@
 import logging, sys
 import threading
+import Queue
+from Queue import PriorityQueue
+
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG) #stderr
 
@@ -42,6 +45,22 @@ def printd (msg):
 	lock.acquire()
 	logging.debug(str(msg))
 	lock.release()
+
+def pop_req_id_from_pq (pq, req_id):
+	l = []
+	to_return = None
+	while not pq.empty():
+		temp = pq.get()
+		if temp[2] == req_id:
+			to_return = temp
+			continue
+		else:
+			l.append(temp)
+	for i in l:
+		pq.put(i)
+
+	return to_return
+
 
 '''
 class req_info:

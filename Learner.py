@@ -1,5 +1,6 @@
 
 from Util import printd
+from Util import pop_req_id_from_pq
 from Queue import PriorityQueue
 import Messenger
 from Messenger import MessageType
@@ -12,9 +13,10 @@ from collections import defaultdict
 class Learner:
 
 
-	def __init__ (self, majority_numb, idnum):
+	def __init__ (self, num_replicas, majority_numb, idnum):
 		# DREW: had to change from list to dict to accomadate NOP
 		self.chat_log = [] # nvm # key: seq_num -> val: value
+		self.num_replicas = num_replicas
 		self.majority_numb = majority_numb
 		# I think this should be equal to 1 since we can count ourselves in the majority
 		self.seq_dict = defaultdict(set) # This is a mapping of sequence number -> dictionary with key = value -> count
@@ -23,12 +25,13 @@ class Learner:
 		self.idnum = idnum
 		self.client_mapping = dict()
 		self.connections_list = None
-		self.prev_leader_nums = defaultdict(list)
+		self.prev_leader_nums = defaultdict(dict) #D2 # dict of dict: seq_num -> req_id -> set(acceptor_id)
 		self.acceptor = None
 		self.proposer = None
 		self.accepted_seq_numbs = dict()
 		#self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
-
+		self.exec_req_set = set() #D2
+		self.catchup_requests_count = dict() # serves as timeout
 
 	def acceptValue (self, leaderNum, idnum, req_id, seq_number, value):
 		seq = int(seq_number)
@@ -75,8 +78,8 @@ class Learner:
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} sending catchup because it's missing {}.".format(self.idnum, self.last_executed_seq_number + 1).upper())
 			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
-			(seq_number_found, leader_num, missing_value) = self.acceptor.get_value_at_seq_number(self.last_executed_seq_number + 1)
-			self.fill_missing_value(seq_number_found, leader_num, self.last_executed_seq_number + 1, missing_value)
+			(seq_number_found, missing_req_id, missing_value) = self.acceptor.get_value_at_seq_number(self.last_executed_seq_number + 1)
+			self.fill_missing_value(seq_number_found, self.idnum, missing_req_id, self.last_executed_seq_number + 1, missing_value)
 			if self.proposer:
 				self.proposer.note_missing_value(seq_number_found, self.idnum, self.last_executed_seq_number + 1
 				)
@@ -85,6 +88,13 @@ class Learner:
 
 			msg = "{}:{}".format(MessageType.CATCHUP.value, self.last_executed_seq_number + 1)
 			Messenger.broadcast_message (self.connections_list, msg)
+
+			# keep track of how many times you request catchup. After so many, timeout
+			if self.last_executed_seq_number + 1 in self.catchup_requests_count:
+				self.catchup_requests_count[self.last_executed_seq_number + 1] += 1
+			else:
+				self.catchup_requests_count[self.last_executed_seq_number + 1] = 1
+			printd("CATCHUP ATTEMPT COUNT: {}".format(self.catchup_requests_count[self.last_executed_seq_number + 1]))
 			return
 		#else:
 			#print "Replica {} has queue {}.".format(self.idnum, self.commands_to_execute.queue)
@@ -99,6 +109,7 @@ class Learner:
 		seq_number = command[0]
 		value = command[1]
 		req_id = command[2]
+
 
 		self.add_msg_to_chat_log(seq_number, value, req_id)
 		self.last_executed_seq_number = max(self.last_executed_seq_number,int(seq_number))
@@ -126,35 +137,77 @@ class Learner:
 
 	def add_and_execute_seq_command (self, seq_number, value, req_id):
 		if seq_number not in self.accepted_seq_numbs:
+			if req_id not in self.exec_req_set: #D2 # if you have not already executed for this req_id
+				self.commands_to_execute.put((seq_number, value, req_id)) #D2
+				self.exec_req_set.add(req_id) #D2
+			else: # D2 # if you have executed for this req_id, but have majority again, execute NOP
+				alt_req = pop_req_id_from_pq(self.commands_to_execute, req_id) # remove and return the item with matching req_id in the pq
+				if alt_req == None: # req-id has already been executed
+					self.commands_to_execute.put((seq_number, "NOP7", "NOP"))
+				elif alt_req[0] > seq_number: # put the request with lowest seq_num onto the pq. The other will be a NOP
+					self.commands_to_execute.put((seq_number, value, req_id))
+					self.commands_to_execute.put((alt_req[0], "NOP8", "NOP"))
+				else:
+					self.commands_to_execute.put(alt_req)
+					self.commands_to_execute.put((seq_number, "NOP9", "NOP"))
 			self.accepted_seq_numbs[seq_number] = True
-			self.commands_to_execute.put((seq_number, value, "NONE"))
 			self.try_to_execute_commands() # Now try to process commands again
 
 
-	def fill_missing_value (self, seq_number_found, leader_num, missing_seq_number, missing_value):
+	def fill_missing_value (self, seq_number_found, acceptor_id, missing_req_id, missing_seq_number, missing_value):
 		#if missing_seq_number in self.missing_vals_of_learners: # if we have not already resolved this issue
-		if seq_number_found == "True":
-			self.prev_leader_nums[missing_seq_number].append((leader_num, missing_value))
-			printd("IN MISSING VALUE, LEN = {}".format(len(self.prev_leader_nums[missing_seq_number])))
+		missing_seq_number = int(missing_seq_number)
+		if missing_req_id not in self.prev_leader_nums[missing_seq_number]:
+			self.prev_leader_nums[missing_seq_number][missing_req_id] = set()
 
-		if missing_seq_number in self.prev_leader_nums and len(self.prev_leader_nums[missing_seq_number]) == self.majority_numb:
-			value = max(self.prev_leader_nums[missing_seq_number], key=itemgetter(0))[1]
-			del self.prev_leader_nums[missing_seq_number]
+		self.prev_leader_nums[missing_seq_number][missing_req_id].add(acceptor_id)
+		printd("{} IN MISSING VALUE, NUM UNIQUE REQ_IDS = {}".format(self.idnum,len(self.prev_leader_nums[missing_seq_number])))
 
-			missing_seq_number = int(missing_seq_number)
-			if seq_number_found == "True" and missing_seq_number > self.last_executed_seq_number and missing_seq_number < int(self.commands_to_execute.queue[0][0]): # ignore previous messages
-				#self.chat_log[missing_seq_number] = missing_value
-				# DREW: why is this the case? The last executed command shouldn't change, right? #
-				#self.last_executed_seq_number = missing_seq_number # + 1
+		if missing_seq_number in self.prev_leader_nums:
 
-				#del self.missing_vals_of_learners[missing_seq_number]
-				printd("A different learner had the missing value. Fixing internal to the learners")
-				self.add_and_execute_seq_command(missing_seq_number, value, "NONE")
-				#self.commands_to_execute.put((missing_seq_number, value, "NONE"))
-				#self.try_to_execute_commands() # Now try to process commands again
+					# do not need to iterate through req_ids. In this call, only the current req_id could have attained majority
+			#for i in range(len(self.prev_leader_nums[missing_seq_number])): # iterate through each unique req_id
+			#	if i not in self.prev_leader_nums[missing_seq_number]:
+			#		continue
+			sum_of_votes = 0
+			for i in self.prev_leader_nums[missing_seq_number].values():
+				sum_of_votes += len(i)
+			printd("{} has {} votes for req_id: {} at seq_num: {} (total num votes = {})".format(self.idnum,len(self.prev_leader_nums[missing_seq_number][missing_req_id]),missing_req_id,missing_seq_number,sum_of_votes))
+			if len(self.prev_leader_nums[missing_seq_number][missing_req_id]) == self.majority_numb: # if this seq_num, req_id combo has majority
+				value = missing_value #max(self.prev_leader_nums[missing_seq_number], key=itemgetter(0))[1]
+				del self.prev_leader_nums[missing_seq_number]
 
-			elif seq_number_found == "False":
-				return
+				if missing_seq_number > self.last_executed_seq_number and missing_seq_number < int(self.commands_to_execute.queue[0][0]): # ignore previous messages
+					#self.chat_log[missing_seq_number] = missing_value
+					# DREW: why is this the case? The last executed command shouldn't change, right? #
+					#self.last_executed_seq_number = missing_seq_number # + 1
+
+					#del self.missing_vals_of_learners[missing_seq_number]
+					printd("A different learner had the missing value. Fixing internal to the learners")
+					if seq_number_found == "True":
+						self.add_and_execute_seq_command(missing_seq_number, value, missing_req_id)
+					else:
+						self.add_and_execute_seq_command(missing_seq_number, "NOP1", "NOP")
+					#self.commands_to_execute.put((missing_seq_number, value, "NONE"))
+					#self.try_to_execute_commands() # Now try to process commands again
+
+			else: # need to check if majority impossible. If so, take NOP
+				sum_of_votes = 0
+				for i in self.prev_leader_nums[missing_seq_number].values():
+					sum_of_votes += len(i)
+					# if this is true, it is unable to achieve majority and all learners should execute NOP (catchup_requests_count acts as timeout)
+					if sum_of_votes >= self.majority_numb and self.catchup_requests_count[missing_seq_number] > 20:
+						self.add_and_execute_seq_command(missing_seq_number, "NOP2", "NOP")
+
+			'''
+			else: # check if this req-id is already in the to-execute queue. If so, this is a NOP
+				for i in self.commands_to_execute.queue:
+					if i[2] == missing_req_id:
+						self.add_and_execute_seq_command(missing_seq_number, "NOP", "NOP")
+						printd("REQ_ID COMING LATER. DO NOP NOW")
+			'''
+
+
 
 		#else:
 			#print("{}, {}.".format(missing_seq_number, self.commands_to_execute.queue))
@@ -182,7 +235,7 @@ class Learner:
 
 		# I want to open a file a single time but I'm not sure how to ensure we close it at the end
 		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
-		self.file_log.write(self.get_chat_log() + "\n")
+		self.file_log.write(self.chat_log[seq_number] + '\n')#self.get_chat_log() + "\n")
 		self.file_log.close()
 
 
