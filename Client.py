@@ -5,6 +5,7 @@ import Messenger
 from Util import printd
 from Messenger import MessageType
 import random
+import os
 
 '''
     This class is responsible for sending chat messages to the replicas
@@ -82,8 +83,8 @@ class Client:
 
     def generate_msg_text (self):
         text = ''
-        for i in range(random.randint(2,2)):
-            text = text + ' ' + str(self.word_list[random.randint(1,1000)])
+        for i in range(random.randint(1,10)):
+            text = text + ' ' + str(self.word_list[random.randint(1,999)])
         return text
 
 
@@ -100,8 +101,11 @@ class Client:
             else:
                 msg = self.generate_msg_text()
 
-            self.send_message(str(self.client_seq_number) + ":" + msg)
+            self.send_message(str(msg))#self.client_seq_number) + ":" + msg)
             recvd_msg = str(self.recv_message())
             printd("Client received message {}.".format(recvd_msg))
             #self.client_seq_number += 1 # move on to next client sequence number and next command
             time.sleep(.1)
+
+        # after completion, wait for the os to shut off client
+        while not False: time.sleep(1)

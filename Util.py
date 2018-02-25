@@ -2,6 +2,7 @@ import logging, sys
 import threading
 import Queue
 from Queue import PriorityQueue
+import os
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG) #stderr
@@ -41,7 +42,7 @@ class Config:
 					.format(self.tolerated_faults, [', '.join(x) for x in self.server_pairs], self.parameters)
 
 def printd (msg):
-	#pass
+	return
 	lock.acquire()
 	logging.debug(str(msg))
 	lock.release()

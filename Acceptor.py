@@ -15,6 +15,7 @@ class Acceptor:
 		self.selected_leaderNum = -1 # Integer value for selected leader
 		self.accepted_seqNum = -1 # sequence number for the value
 		self.accepted_lastVal = -1 # Last seen value that was proposed
+		self.accepted_req_id = ".-."
 		self.socket_connections_list = None
 		self.seq_dict = dict()
 		#self.req_dict = dict() #D2 # dict mapping req_id -> seq_num ## if you've already seen this reqeust, do a NOP
@@ -33,7 +34,7 @@ class Acceptor:
 			self.selected_leaderNum = int(newLeaderNum)
 
 			printd("Replica " + str(self.idnum) + " accepts leader number {}".format(newLeaderNum))
-			msg = "{}:{},{},{},{}".format(MessageType.YOU_ARE_LEADER.value, self.selected_leaderNum, self.idnum, self.accepted_seqNum, self.accepted_lastVal)
+			msg = "{}:{},{},{},{},{}".format(MessageType.YOU_ARE_LEADER.value, self.selected_leaderNum, self.idnum, self.accepted_req_id, self.accepted_seqNum, self.accepted_lastVal)
 		else:
 			msg = "{}:{},{}".format(MessageType.NACK.value, self.selected_leaderNum, self.idnum)
 			printd("Not a high enough leader id {} because our current id {}.".format(newLeaderNum, self.selected_leaderNum))
@@ -46,20 +47,21 @@ class Acceptor:
 		# int(seqNum) not in self.seq_dict:#
 		#if int(leaderNum) >= self.selected_leaderNum and int(seqNum) > int(self.accepted_seqNum):
 		seqNum = int(seqNum)
-		if int(leaderNum) >= self.selected_leaderNum and int(seqNum) not in self.seq_dict:
+		if int(leaderNum) >= self.selected_leaderNum:# and int(seqNum) not in self.seq_dict: #DREW DEBUG? DOES TIS NEED TO BE HERE?
 			# D2
 			#if req_id in self.req_dict and self.req_dict[req_id] != int(seqNum): # if you already gave this req_id a different seq_num, send a NOP for this seq_num
 			#	self.learner.acceptValue(leaderNum, self.idnum, "NOP", seqNum, "NOP")
 			#	self.send_value(leaderNum, "NOP", seqNum, "NOP")
 			#else: # else accept as usual
 			self.accepted_lastVal = value
+			self.accepted_req_id = req_id
 			self.accepted_seqNum = seqNum
 			self.seq_dict[int(seqNum)] = (req_id, value)
 			self.learner.acceptValue(leaderNum, self.idnum, req_id, seqNum, value)
 			self.send_value(leaderNum, req_id, seqNum, value)
 			#self.req_dict[req_id] = int(seqNum) #D2
 		else:
-			printd("Acceptor {} has not selected leader, leaderNum = {} and sequence number = {}, while message has been proposed from leaderNum: {} with seq_number {}".format(self.idnum, self.selected_leaderNum, self.accepted_seqNum, leaderNum, seqNum))
+			printd("Acceptor {} did not accept value with leaderNum = {} and sequence number = {}, while message has been proposed from leaderNum: {} with seq_number {}".format(self.idnum, self.selected_leaderNum, self.accepted_seqNum, leaderNum, seqNum))
 
 
 

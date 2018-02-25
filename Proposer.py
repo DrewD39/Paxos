@@ -29,7 +29,7 @@ class Proposer:
 		self.follower_collection = []
 		self.acceptor = acceptor # potential bug depending on how python passes parameters (MATT SAYS: definitely by reference right?)
 		self.acceptor.selected_leaderNum = self.leaderNum # At least our acceptor will follow us...
-		self.request_history = dict() # key = client_name,client_seq_num tuple; value = socket of origin,internal_seq_num tuple
+		#self.request_history = dict() # key = client_name,client_seq_num tuple; value = socket of origin,internal_seq_num tuple
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 		self.skips = skips
@@ -56,7 +56,7 @@ class Proposer:
 			printd("MANUALLY SKIPPING SEQ_NUM {}".format(self.seq_number))
 			self.seq_number += 1
 
-		self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
+		#self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
 
 
 		if self.am_leader == True:
@@ -101,9 +101,10 @@ class Proposer:
 
 
 	# potential bug: do we need to pass in leaderNum with ACCEPT message?
-	def newFollower (self, prev_leaderNum, acceptor_id, seq_number, last_value):
+	# prev_leaderNum, idnum, req_id, seq_number, current value
+	def newFollower (self, prev_leaderNum, acceptor_id, req_id, seq_number, last_value):
 		#returnList = [False]
-		self.follower_collection.append( (int(prev_leaderNum), int(seq_number), last_value) ) # add follower info to collection
+		self.follower_collection.append( (int(prev_leaderNum), str(req_id), int(seq_number), str(last_value)) ) # add follower info to collection
 		if not self.am_leader and acceptor_id not in self.followers: # if not leader
 
 			self.followers.add(acceptor_id) # We have another follower who's joined us
@@ -111,34 +112,38 @@ class Proposer:
 			if len(self.followers) == self.majority_numb: # time to become leader since we have enough followers
 				self.am_leader = True
 				self.seq_number = int(seq_number) # TODO BUG: This seems like a bug....
+
 				# need to decide most relavant last value.
 				# find follower with highest prevLeaderNum. Break ties with seq_num, then val.
+				max_last_follower = [-1, ".-.", -1, '']
 				max_prevLeader = -1; max_prevSeqNum = -1; max_prevVal = '';
-				for i in self.follower_collection:
-					if i[0] > max_prevLeader: # if prev_leaderNum > max_prevLeader
-						max_prevLeader = i[0]
-						max_prevSeqNum = i[1]
-						max_prevVal =    i[2]
+				for follower in self.follower_collection:
+					if follower[0] > max_last_follower[0]: # if prev_leaderNum > max_prevLeader
+						max_last_follower = follower
 						continue
-					if i[0] == max_prevLeader and i[1] > max_prevSeqNum:
-						max_prevSeqNum = i[1]
-						max_prevVal =    i[2]
+					if follower[0] == max_last_follower[0] and follower[2] > max_last_follower[2]:
+						max_last_follower = follower
 						continue
-					if i[0] == max_prevLeader and i[1] == max_prevSeqNum and i[2] > max_prevVal:
-						max_prevVal =    i[2]
+					if follower[0] == max_last_follower[0] and follower[2] == max_last_follower[2] and follower[3] > max_last_follower[3]:
+						max_last_follower = follower
 						continue
 				# As first order of business as new leader, broadcast the most recent/relavant message you got back from accepts
 				# acceptRequest requires acceptor object, so it needs to be called from replica
 				# so we return a list of args that replica can use to call accept request
 				# alternative: pass in acceptor on initialize. Possible bug if mem references aren't shared
 				# this function will set seq_num and value accordingly
-				if (max_prevVal != '' or max_prevSeqNum != -1 or max_prevLeader != ''):
+				if (int(max_last_follower[0]) != -1 and int(max_last_follower[2]) != -1):
 					# TODO: We need to send out this value, eventually
-					#self.acceptRequest(max_prevVal, self.acceptor, seq_number_override=max_prevSeqNum)
-					self.seq_number = int(max_prevSeqNum)
-					self.value = max_prevVal
+					# origin_socket, client_name, client_seq_number, value
+					self.seq_number = max_last_follower[2]-1
+					n_client_name = max_last_follower[1].split('-')[0]
+					n_client_seq_num = max_last_follower[1].split('-')[1]
+					n_val = max_last_follower[3]
+					self.acceptRequest(None, n_client_name, n_client_seq_num, n_val)
 
-				printd("Replica {} just became the leader with value = {} and sequence number = {}".format(self.idnum, self.value, seq_number))
+					printd("Replica {} just became the leader with value = {}, sequence number = {}, req_id = {}".format(self.idnum, n_val, self.seq_number,max_last_follower[1]))
+				else:
+					printd("Replica {} just became the leader with default values".format(self.idnum))
 
 				#returnList = [True, max_prevVal, max_prevSeqNum]
 
@@ -179,7 +184,7 @@ class Proposer:
 			return
 		elif seq_number_found == "False":
 			# if there is a majority of learners missing this value, send a NOP
-			print self.missing_vals_of_learners[missing_seq_number]
+			printd(self.missing_vals_of_learners[missing_seq_number])
 			if len(self.missing_vals_of_learners[missing_seq_number]) >= self.majority_numb: # Count ourselves too
 				self.acceptor.accept_value(self.leaderNum, "NOP-SHOULD NOT HAPPEN", missing_seq_number, "NOP-SHOULD NOT HAPPEN") # We should also accept a value locally
 				if int(missing_seq_number) == self.seq_number + 1:
@@ -192,7 +197,7 @@ class Proposer:
 				printd("Leader num {} is proposing NOP at seq_num {}".format(self.leaderNum,missing_seq_number))
 		else:
 			raise RuntimeError("Error: invalid seq_number_found arg for MISSING_VALUE command")
-		
+
 
 
 	'''def send_value (self, [idnum OR leaderNum?], seq_number):

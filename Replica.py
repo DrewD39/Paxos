@@ -23,7 +23,7 @@ class Replica():
 
 	timeout = 1 # value in seconds
 	active = True # Replica is up and running
-	def __init__ (self, idnum, ip, port, server_pairs, semaphore, case, proposer=False):
+	def __init__ (self, idnum, ip, port, server_pairs, semaphore, test_cases, proposer=False):
 
 		self.idnum = idnum
 		self.ip = ip
@@ -35,7 +35,7 @@ class Replica():
 
 		self.other_replicas = [x for x in server_pairs if x != (ip, str(port))] # List of tuples (ip, port)
 
-		print("\nREPLICA {}\nServer Pairs: {}\nOther Replicas: {}".format(self.idnum,server_pairs,self.other_replicas))
+		printd("\nREPLICA {}\nServer Pairs: {}\nOther Replicas: {}".format(self.idnum,server_pairs,self.other_replicas))
 
 
 		self.learner = Learner.Learner(self.num_replicas, self.majority, self.idnum)
@@ -48,11 +48,13 @@ class Replica():
 		self.skips = []
 		self.kills = []
 
-		if case != None:
+		for case in test_cases:
 			if case[0] == "kill":	# if kill case active, put the seq_num into kills list
 				self.kills.append(case[1])
 			if case[0] == "skip":	# if skip test case active, put the seq_num into skips list
 				self.skips.append(case[1])
+
+		self.kill_next_round = False
 
 
 	def start_replica (self):
@@ -188,7 +190,7 @@ class Replica():
 	def recv_message (self, origin_socket):
 		if self.active:
 			msg = Messenger.recv_message(origin_socket)
-			#printd("Message is " + str(msg))
+			printd("Message is " + str(msg))
 			cmd, info = msg.split(":",1)
 			args = info.split(",")
 
@@ -221,7 +223,7 @@ class Replica():
 				if not self.proposer:
 					raise RuntimeError("Non-proposer recieved YOU_ARE_LEADER msg")
 				if self.proposer:
-					self.proposer.newFollower(args[0], args[1], args[2], args[3])
+					self.proposer.newFollower(args[0], args[1], args[2], args[3], args[4])
 
 			elif cmd == MessageType.COMMAND.value:
 				# acceptor should decide to accept leader command or not, then broadcast accept message to all learners
@@ -238,11 +240,16 @@ class Replica():
 				# info: leaderNum, idnum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3], args[4]) # True == majority achieved; False == no majority
+				if self.proposer and int(args[3])+1 in self.kills:
+					self.kill_next_round = True
 				if ( accepted == True and self.proposer and ( (int(args[3]) in self.kills) or (int(args[3])-1 in self.skips)) ):
 					# This is just a test of killing the primary again and again
-					#if int(args[2])-1 in self.skips:
-					#	del self.skips[int(args[2])-1]
-					printd("\n\nMANUALLY SHUTTING DOWN REPLICA " + str(self.idnum)+'\n')
+					if int(args[3]) in self.kills:
+						self.kills.remove(int(args[3]))
+						self.kill_next_round = False
+					if int(args[3])-1 in self.skips:
+						self.skips.remove( int(args[3])-1 )
+					print("\n\nMANUALLY KILLING REPLICA " + str(self.idnum)+' at sequence number {}\n'.format(args[3]))
 					self.active = False
 
 			elif cmd == MessageType.NACK.value:

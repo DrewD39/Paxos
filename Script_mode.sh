@@ -9,8 +9,8 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
       echo "------ replica ${ADDR[2]} started"
     fi
     if [ "${ADDR[0]}" == "client" ]; then
-      sleep 5
-      python2 Spawn_Client.py -i ${ADDR[1]} -r ${ADDR[2]} &
+      sleep 0.5
+      python2 Spawn_Client.py -i ${ADDR[1]} -r ${ADDR[2]} -n ${ADDR[3]} &
       echo "------ client ${ADDR[1]} started"
     fi
     #done

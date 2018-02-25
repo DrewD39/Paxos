@@ -6,6 +6,7 @@ import Messenger
 from Messenger import MessageType
 from operator import itemgetter
 from collections import defaultdict
+import hashlib
 
 '''
 	This class will be the final decider of values
@@ -32,6 +33,8 @@ class Learner:
 		#self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
 		self.exec_req_set = set() #D2
 		self.catchup_requests_count = dict() # serves as timeout
+		self.hasher = hashlib.md5()
+		self.hash_count = 0
 
 	def acceptValue (self, leaderNum, idnum, req_id, seq_number, value):
 		seq = int(seq_number)
@@ -110,7 +113,6 @@ class Learner:
 		value = command[1]
 		req_id = command[2]
 
-
 		self.add_msg_to_chat_log(seq_number, value, req_id)
 		self.last_executed_seq_number = max(self.last_executed_seq_number,int(seq_number))
 
@@ -143,13 +145,13 @@ class Learner:
 			else: # D2 # if you have executed for this req_id, but have majority again, execute NOP
 				alt_req = pop_req_id_from_pq(self.commands_to_execute, req_id) # remove and return the item with matching req_id in the pq
 				if alt_req == None: # req-id has already been executed
-					self.commands_to_execute.put((seq_number, "NOP7", "NOP"))
+					self.commands_to_execute.put((seq_number, "NOP", "NOP"))
 				elif alt_req[0] > seq_number: # put the request with lowest seq_num onto the pq. The other will be a NOP
 					self.commands_to_execute.put((seq_number, value, req_id))
-					self.commands_to_execute.put((alt_req[0], "NOP8", "NOP"))
+					self.commands_to_execute.put((alt_req[0], "NOP", "NOP"))
 				else:
 					self.commands_to_execute.put(alt_req)
-					self.commands_to_execute.put((seq_number, "NOP9", "NOP"))
+					self.commands_to_execute.put((seq_number, "NOP", "NOP"))
 			self.accepted_seq_numbs[seq_number] = True
 			self.try_to_execute_commands() # Now try to process commands again
 
@@ -187,7 +189,7 @@ class Learner:
 					if seq_number_found == "True":
 						self.add_and_execute_seq_command(missing_seq_number, value, missing_req_id)
 					else:
-						self.add_and_execute_seq_command(missing_seq_number, "NOP1", "NOP")
+						self.add_and_execute_seq_command(missing_seq_number, "NOP", "NOP")
 					#self.commands_to_execute.put((missing_seq_number, value, "NONE"))
 					#self.try_to_execute_commands() # Now try to process commands again
 
@@ -197,7 +199,7 @@ class Learner:
 					sum_of_votes += len(i)
 					# if this is true, it is unable to achieve majority and all learners should execute NOP (catchup_requests_count acts as timeout)
 					if sum_of_votes >= self.majority_numb and self.catchup_requests_count[missing_seq_number] > 20:
-						self.add_and_execute_seq_command(missing_seq_number, "NOP2", "NOP")
+						self.add_and_execute_seq_command(missing_seq_number, "NOP", "NOP")
 
 			'''
 			else: # check if this req-id is already in the to-execute queue. If so, this is a NOP
@@ -227,16 +229,21 @@ class Learner:
 
 
 	def add_msg_to_chat_log (self, seq_number, msg, req_id):
-		#if req_id == "NOP":
-		#	return # do not perform any execution on a NOP
-		self.chat_log.append(str(seq_number) + "|" + msg)
+		self.chat_log.append(req_id.split('-')[0] + ": " + msg)
 		# TODO: just for debugging, later remove this
 		#print self.get_chat_log()
 
-		# I want to open a file a single time but I'm not sure how to ensure we close it at the end
-		self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
-		self.file_log.write(self.chat_log[seq_number] + '\n')#self.get_chat_log() + "\n")
-		self.file_log.close()
+		# if NOP, add to chat log but do not print ('execute'). Also check seq_num for hashing
+		if str(req_id) != "NOP": # do nothing for NO OP
+			self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
+			self.file_log.write(self.chat_log[seq_number] + '\n')#self.get_chat_log() + "\n")
+			self.file_log.close()
+		if seq_number % 49 == 0 and seq_number != 0: # print hash every 50 commands
+			self.hash_count += 1
+			with open("replica_" + str(self.idnum) + ".log", 'rb') as afile:
+				buf = afile.read()
+				self.hasher.update(buf)
+			print("Replica #{}, hash #{} | hash: {}".format(self.idnum,self.hash_count,self.hasher.hexdigest()))
 
 
 	def get_chat_log (self):
