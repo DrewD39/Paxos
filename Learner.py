@@ -136,7 +136,7 @@ class Learner:
 
 
 	def add_and_execute_seq_command (self, seq_number, value, req_id):
-		if seq_number not in self.accepted_seq_numbs:
+		if seq_number not in self.accepted_seq_numbs and seq_number != -1:
 			if req_id not in self.exec_req_set: #D2 # if you have not already executed for this req_id
 				self.commands_to_execute.put((seq_number, value, req_id)) #D2
 				self.exec_req_set.add(req_id) #D2

@@ -23,7 +23,6 @@ class Replica():
 
 	timeout = 1 # value in seconds
 	active = True # Replica is up and running
-
 	def __init__ (self, idnum, ip, port, server_pairs, semaphore, case, proposer=False):
 
 		self.idnum = idnum
@@ -34,7 +33,10 @@ class Replica():
 		self.num_replicas = len(server_pairs)
 		self.majority = (len(server_pairs) // 2) + 1 # interger division rounds down, so add one
 
-		self.other_replicas = [x for x in server_pairs if x != (ip, port)] # List of tuples (ip, port)
+		self.other_replicas = [x for x in server_pairs if x != (ip, str(port))] # List of tuples (ip, port)
+
+		print("\nREPLICA {}\nServer Pairs: {}\nOther Replicas: {}".format(self.idnum,server_pairs,self.other_replicas))
+
 
 		self.learner = Learner.Learner(self.num_replicas, self.majority, self.idnum)
 		self.acceptor = Acceptor.Acceptor(self.idnum, self.learner)
@@ -61,6 +63,13 @@ class Replica():
 		self.serversocket.listen(5)
 
 		self.connections_list = [] # List of sockets to other replicas
+		## Somehow things diverge before here.
+		## There must have been some sort of whitespace invisible string effect brought in by passing arguments through script
+		## Which was causing main.py to evaluate correctly but script to fail the comparison and other_replicas list was incorrect
+		## Use this print statement to debug
+		## w/o script, len = 4 - idnum
+		## w/ script, len = 4- idnum + 1
+		## print("\n\nrep {}, other_replics: {} \n(len = {})\n".format(self.idnum,self.other_replicas[int(self.idnum):],len(self.other_replicas[int(self.idnum):])))
 		t1 = threading.Thread(target=self.setup_server, args=(len(self.other_replicas[int(self.idnum):]),))
 		t1.start()
 
@@ -148,7 +157,7 @@ class Replica():
 
 	def connect_to_replicas (self, replicas):
 		i = 0
-		printd(str(self.idnum) + " will connect to " + str(replicas))
+		printd(str(self.idnum) + " will connect to replicas: " + str(replicas) + "- len = " + str(len(replicas)))
 		for replica in replicas:
 			connected = False
 			while not connected:
@@ -158,12 +167,12 @@ class Replica():
 			    	s.connect((replica[0], int(replica[1]))) # Connect to (ip, port)
 			    	connected = True
 			    except Exception as e:
-			    	time.sleep(0) # yield thread
+			    	time.sleep(0.1) # yield thread
 
 			printd(str(self.idnum) + " successfuly connected on (ip, port) " + str(replica))
 			self.connections_list.append(s)
 
-		printd(str(len(replicas)) + " connections setup for " + str(self.idnum))
+		printd(str(len(replicas)) + " connections set up for " + str(self.idnum))
 
 
 	def setup_server (self, numb_replicas):
@@ -174,7 +183,7 @@ class Replica():
 			printd(str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname())) #print (clientsocket, address)
 			i += 1
 
-		printd("Server is setup for " + str(self.idnum))
+		printd("Server is set up for " + str(self.idnum))
 
 	def recv_message (self, origin_socket):
 		if self.active:

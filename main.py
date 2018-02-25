@@ -22,8 +22,8 @@ if __name__ == "__main__":
 	elif args.tolerated_faults and args.server_pairs and args.parameters: # from CL
 		config = Config(None, args.tolerated_faults, args.server_pairs, args.parameters)
 	else: # just use default values
-		#config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007)", None)
-		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007), (127.0.0.1,4008),(127.0.0.1,4009),(127.0.0.1,4010),(127.0.0.1,4011),(127.0.0.1,4012)", None)
+		config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007)", None)
+		#config = Config(None, 1, "(127.0.0.1,4003),(127.0.0.1,4004),(127.0.0.1,4005),(127.0.0.1,4006),(127.0.0.1,4007), (127.0.0.1,4008),(127.0.0.1,4009),(127.0.0.1,4010),(127.0.0.1,4011),(127.0.0.1,4012)", None)
 
 	print config
 
@@ -76,6 +76,7 @@ if __name__ == "__main__":
 		semaphore.acquire()
 
 	# And now we should run the client
+	print("Client server pairs:"); print(config.server_pairs)
 	client1 = Client (config.server_pairs, 'A')
 	client1.connect_to_all_replicas() # Connect to all replicas even if they don't have a proposer yet
 
@@ -86,14 +87,14 @@ if __name__ == "__main__":
 	msg1 = "XXXXXXXX"
 	msg2 = "ZZZZZZZZ"
 
-	num_messages = 20
+	num_messages = 50
 
 	time.sleep(1)
 
 	#client.operate() has 3 optional parameters and I did not want to bother with option arg syntax for the Process library, as it was taking too long for little returnList
 	# args: operate (self, num_messages=1, manual_messages=False, repeated_message=None, messages_file=None)
-	Process(target=client1.operate,args=(num_messages,False,msg1,None)).start()
-	Process(target=client2.operate,args=(num_messages,False,msg2,None)).start()
+	Process(target=client1.operate,args=(num_messages,False)).start()
+	Process(target=client2.operate,args=(num_messages,False)).start()
 
 
 
