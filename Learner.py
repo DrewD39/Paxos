@@ -15,11 +15,9 @@ class Learner:
 
 
 	def __init__ (self, num_replicas, majority_numb, idnum):
-		# DREW: had to change from list to dict to accomadate NOP
-		self.chat_log = [] # nvm # key: seq_num -> val: value
+		self.chat_log = []
 		self.num_replicas = num_replicas
 		self.majority_numb = majority_numb
-		# I think this should be equal to 1 since we can count ourselves in the majority
 		self.seq_dict = defaultdict(set) # This is a mapping of sequence number -> dictionary with key = value -> count
 		self.commands_to_execute = PriorityQueue()
 		self.last_executed_seq_number = - 1 # We haven't executed any commands yet
@@ -30,7 +28,6 @@ class Learner:
 		self.acceptor = None
 		self.proposer = None
 		self.accepted_seq_numbs = dict()
-		#self.missing_vals_of_learners = dict() # dict of key: seq_num -> val: number of learners missing the value at this seq_num
 		self.exec_req_set = set() #D2
 		self.catchup_requests_count = dict() # serves as timeout
 		self.hasher = hashlib.md5()
@@ -42,29 +39,16 @@ class Learner:
 
 		if seq > self.last_executed_seq_number:# or req_id == "NOP": # Else we should ignore
 
-			#if seq not in self.seq_dict.keys():
-			#	self.seq_dict[seq] = dict()
-
 			self.seq_dict[seq].add(int(idnum)) # We've now seen one of these values
-			#else:
-				#self.seq_dict[seq][req_id] += 1 # Increment the number of messages we've seen for this sequence number and value
 
 			if len(self.seq_dict[seq]) == self.majority_numb:
-				# Execute commnand
-				#self.add_msg_to_chat_log(value)
-				# We shouldn't execute again for this seq_number, and since we've already received
-				# a majority, we're guaranteed to not receive a majority again
-				#self.seq_dict[seq_number] = 0
 				printd(str(self.idnum) + " has majority for value at {} of {} (last exec seq num = {})".format(seq_number,str(value),self.last_executed_seq_number))
 				self.reply_to_client(req_id, value)				   # so we can go ahead and reply to the client
 				self.add_and_execute_seq_command(seq, value, req_id)
-				#self.commands_to_execute.put((seq, value, req_id)) # once it is in here is is guaranteed to execute. Eventually.
-				#self.try_to_execute_commands()
 				del self.seq_dict[seq]
 				return True
 			else:
 				printd("{} cannot execute for {},{} because we've only seen messages from{}.".format(self.idnum, seq_number, value, self.seq_dict[seq]))
-				#printd("Don't have majority for learner yet..., seq_number " + seq_number + " and values_list = "  + str(self.seq_dict[seq_number]))
 				return False
 
 
@@ -77,11 +61,8 @@ class Learner:
 
 
 	def try_to_execute_commands (self):
-
-		#for i in range(self.last_executed_seq_number + 1, int(self.commands_to_execute.queue[0][0])):
 		if not self.commands_to_execute.empty() and self.last_executed_seq_number + 1 < int(self.commands_to_execute.queue[0][0]):
 			printd("Replica {} sending catchup because it's missing {}.".format(self.idnum, self.last_executed_seq_number + 1).upper())
-			#self.missing_vals_of_learners[i] = 1 # keep track of how many learners are missing this value
 			(seq_number_found, missing_req_id, missing_value) = self.acceptor.get_value_at_seq_number(self.last_executed_seq_number + 1)
 			self.fill_missing_value(seq_number_found, self.idnum, missing_req_id, self.last_executed_seq_number + 1, missing_value)
 			if self.proposer:
@@ -100,8 +81,6 @@ class Learner:
 				self.catchup_requests_count[self.last_executed_seq_number + 1] = 1
 			printd("CATCHUP ATTEMPT COUNT: {}".format(self.catchup_requests_count[self.last_executed_seq_number + 1]))
 			return
-		#else:
-			#print "Replica {} has queue {}.".format(self.idnum, self.commands_to_execute.queue)
 
 		# Convoluted way to peek at PriorityQueue
 		while not self.commands_to_execute.empty() and int(self.commands_to_execute.queue[0][0]) == self.last_executed_seq_number + 1:
@@ -140,10 +119,10 @@ class Learner:
 
 	def add_and_execute_seq_command (self, seq_number, value, req_id):
 		if seq_number not in self.accepted_seq_numbs and seq_number != -1:
-			if req_id not in self.exec_req_set: #D2 # if you have not already executed for this req_id
+			if req_id not in self.exec_req_set: # if you have not already executed for this req_id
 				self.commands_to_execute.put((seq_number, value, req_id)) #D2
-				self.exec_req_set.add(req_id) #D2
-			else: # D2 # if you have executed for this req_id, but have majority again, execute NOP
+				self.exec_req_set.add(req_id)
+			else: # if you have executed for this req_id, but have majority again, execute NOP
 				alt_req = pop_req_id_from_pq(self.commands_to_execute, req_id) # remove and return the item with matching req_id in the pq
 				if alt_req == None: # req-id has already been executed
 					if req_id in self.exec_req_history and req_id != "NOP":

@@ -2,7 +2,6 @@ import logging, sys
 import threading
 import Queue
 from Queue import PriorityQueue
-import os
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG) #stderr
@@ -61,14 +60,3 @@ def pop_req_id_from_pq (pq, req_id):
 		pq.put(i)
 
 	return to_return
-
-
-'''
-class req_info:
-	def __init__ (client_name, client_seq_number):
-		self.client_name = client_name
-		self.client_seq_number = client_seq_number
-
-	def to_string ():
-		return str(client_name) + "-" + str(client_seq_number)
-'''

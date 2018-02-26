@@ -36,8 +36,6 @@ class Client:
         connected = False
         while not connected:
             try:
-                # RIP an hour...
-                #return # DREW DEBUG # Force client to not attempt connection
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # This is a bug if we move this out... see man connect for python
                 s.connect((replica[0], int(replica[1]))) # Connect to (ip, port)
                 header = '%8s' % len(self.client_name)
@@ -46,7 +44,6 @@ class Client:
             except Exception as e:
                 time.sleep(0) # yield thread
 
-        #printd("Client connected to replica " + str(idnum))
         self.connection_sockets.append(s)
 
 
@@ -92,9 +89,6 @@ class Client:
         printd("Client {} is operating".format(self.client_name))
 
 
-        #if self.client_name == 'A':
-        #    time.sleep(10)
-
         for i in range(num_messages):
             if manual_messages:
                 msg = raw_input("What is Client {}'s msg? ".format(self.client_name))
@@ -104,7 +98,6 @@ class Client:
             self.send_message(str(msg))#self.client_seq_number) + ":" + msg)
             recvd_msg = str(self.recv_message())
             printd("Client received message {}.".format(recvd_msg))
-            #self.client_seq_number += 1 # move on to next client sequence number and next command
             time.sleep(.1)
 
         # after completion, wait for the os to shut off client

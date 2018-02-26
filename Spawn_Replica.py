@@ -72,12 +72,5 @@ if __name__ == "__main__":
 
 
     replica.start_replica()
-    ## replacing this with bash-level process spawning
-    #rep_process = Process(target=replica.start_replica)
-    #rep_process.start()
 
-
-    # After starting all processes, we should wait for them all to connect to each other
-    # before sending any messages
-    #for i in range(0, len(config.server_pairs)):
     semaphore.acquire()

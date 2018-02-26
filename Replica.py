@@ -65,13 +65,7 @@ class Replica():
 		self.serversocket.listen(5)
 
 		self.connections_list = [] # List of sockets to other replicas
-		## Somehow things diverge before here.
-		## There must have been some sort of whitespace invisible string effect brought in by passing arguments through script
-		## Which was causing main.py to evaluate correctly but script to fail the comparison and other_replicas list was incorrect
-		## Use this print statement to debug
-		## w/o script, len = 4 - idnum
-		## w/ script, len = 4- idnum + 1
-		## print("\n\nrep {}, other_replics: {} \n(len = {})\n".format(self.idnum,self.other_replicas[int(self.idnum):],len(self.other_replicas[int(self.idnum):])))
+		# print("\n\nrep {}, other_replics: {} \n(len = {})\n".format(self.idnum,self.other_replicas[int(self.idnum):],len(self.other_replicas[int(self.idnum):])))
 		t1 = threading.Thread(target=self.setup_server, args=(len(self.other_replicas[int(self.idnum):]),))
 		t1.start()
 
@@ -81,11 +75,6 @@ class Replica():
 
 		if self.idnum == 0: # Only one proposer at a time
 			self.initialize_proposer()
-		#	self.should_kill = True
-		#elif self.idnum == 1:
-		#	self.should_kill = True
-		#else:
-		#	self.should_kill = False
 
 		self.learner.set_socket_list(self.connections_list)
 		self.acceptor.set_socket_list(self.connections_list)
@@ -96,11 +85,9 @@ class Replica():
 		# for connections from clients
 		t2 = threading.Thread(target=self.wait_for_message)
 		t3 = threading.Thread(target=self.wait_for_client_connections)
-		#t4 = threading.Thread(target=self.send_heartbeat)
 
 		t2.start()
 		t3.start()
-		#t4.start()
 
 		t2.join()
 		t3.join()
@@ -138,15 +125,12 @@ class Replica():
 			rd, wd, ed = select.select(self.connections_list, [], [], (self.timeout * int(self.idnum)) + self.timeout)
 
 			if len(rd) == 0: # We haven't received a message in a while...
-				#if (int(self.acceptor.selected_leaderNum) + 1) % (len(self.other_replicas)+1) == int(self.idnum): # If we're the next in line
 				printd("Creating a new proposer on replica " + str(self.idnum))
 				self.initialize_proposer()
-				#pass
 
 			# Handle received messages
 			for s in rd:
 				self.recv_message(s)
-				#printd(s)
 
 
 	def client_thread (self, clientsocket):
@@ -164,8 +148,7 @@ class Replica():
 			connected = False
 			while not connected:
 			    try:
-			    	# RIP an hour...
-			    	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # This is a bug if we move this out... see man connect for python
+			    	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			    	s.connect((replica[0], int(replica[1]))) # Connect to (ip, port)
 			    	connected = True
 			    except Exception as e:
@@ -182,7 +165,7 @@ class Replica():
 		while i < numb_replicas: # We know we should accept connections from all other replicas
 			(clientsocket, address) = self.serversocket.accept()
 			self.connections_list.append(clientsocket)
-			printd(str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname())) #print (clientsocket, address)
+			printd(str(self.idnum) + " Accepted connection " + str(clientsocket.getsockname()))
 			i += 1
 
 		printd("Server is set up for " + str(self.idnum))

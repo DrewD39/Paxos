@@ -57,7 +57,6 @@ def send_message (aSocket, msg):
 	try:
 		if not should_drop_message():
 			header = '%8s' % len(msg)
-			#send_header(socket, len(msg))
 			sent = aSocket.send(header + msg)
 			#printd("socket {} sent msg: {} to: {}".format(socket.getsockname(),msg, socket.getpeername()))
 			if sent == 0:

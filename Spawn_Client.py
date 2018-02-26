@@ -44,6 +44,3 @@ if __name__ == "__main__":
     time.sleep(2)
 
     client1.operate(num_messages, man_mode)
-
-    # once a client has sent all of their messages, they should shut themselves down
-    #os.system("kill -9 %d"%(os.getppid()))
