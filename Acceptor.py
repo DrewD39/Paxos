@@ -21,6 +21,7 @@ class Acceptor:
 		#self.req_dict = dict() #D2 # dict mapping req_id -> seq_num ## if you've already seen this reqeust, do a NOP
 		self.idnum = idnum
 		self.learner = learner
+		self.locked_seq_nums = set() # need to lock seq_nums after you have sent out a value (or lack-of-value) for the seq_num
 
 
 	def set_socket_list (self, socket_connections_list):
@@ -47,7 +48,7 @@ class Acceptor:
 		# int(seqNum) not in self.seq_dict:#
 		#if int(leaderNum) >= self.selected_leaderNum and int(seqNum) > int(self.accepted_seqNum):
 		seqNum = int(seqNum)
-		if int(leaderNum) >= self.selected_leaderNum:# and int(seqNum) not in self.seq_dict: #DREW DEBUG? DOES TIS NEED TO BE HERE?
+		if int(leaderNum) >= self.selected_leaderNum and int(seqNum) not in self.locked_seq_nums:# and int(seqNum) not in self.seq_dict: #DREW DEBUG? DOES TIS NEED TO BE HERE?
 			# D2
 			#if req_id in self.req_dict and self.req_dict[req_id] != int(seqNum): # if you already gave this req_id a different seq_num, send a NOP for this seq_num
 			#	self.learner.acceptValue(leaderNum, self.idnum, "NOP", seqNum, "NOP")
@@ -57,6 +58,7 @@ class Acceptor:
 			self.accepted_req_id = req_id
 			self.accepted_seqNum = seqNum
 			self.seq_dict[int(seqNum)] = (req_id, value)
+			self.locked_seq_nums.add(int(seqNum))
 			self.learner.acceptValue(leaderNum, self.idnum, req_id, seqNum, value)
 			self.send_value(leaderNum, req_id, seqNum, value)
 			#self.req_dict[req_id] = int(seqNum) #D2
@@ -83,6 +85,7 @@ class Acceptor:
 			missing_req_id = "NONE"
 			missing_value = ''
 
+		self.locked_seq_nums.add(int(missing_seq_number))
 		return ( seq_number_found, missing_req_id, missing_value)
 
 
@@ -101,6 +104,7 @@ class Acceptor:
 		msg = "{}:{},{},{},{},{}".format(MessageType.MISSING_VALUE.value, seq_number_found, self.idnum, missing_req_id, missing_seq_number, missing_value)
 		#Messenger.broadcast_message(self.connections_list, msg)
 		Messenger.send_message(socket, msg)
+		self.locked_seq_nums.add(int(missing_seq_number))
 
 
  # accept_value is being used in place of this function. The broadcast cannot be skipped.

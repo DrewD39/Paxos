@@ -5,6 +5,11 @@ from Util import printd
 import random
 from socket import error as SocketError
 
+threshold = 0.0
+
+def set_threshold(p):
+	global threshold
+	threshold = p
 
 class MessageType(Enum):
 	REQUEST = "1"
@@ -18,7 +23,6 @@ class MessageType(Enum):
 	HEARTBEAT = "9"
 
 def should_drop_message ():
-	threshold = .10
 	p = random.uniform(0, 1)
 	return p < threshold
 

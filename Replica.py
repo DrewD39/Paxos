@@ -114,7 +114,7 @@ class Replica():
 
 
 	def initialize_proposer (self):
-		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.skips)
+		self.proposer = Proposer.Proposer(self.idnum, self.majority, self.acceptor, self.kills, self.skips)
 		# socket connections list should now be set up
 		self.proposer.set_socket_list(self.connections_list)
 		self.learner.set_proposer(self.proposer) # Throwing up again...
@@ -240,16 +240,17 @@ class Replica():
 				# info: leaderNum, idnum, req_id, sequence number, value
 				#printd(str(self.idnum) + " sending accept message to learner with args " + str(args[0]) + " : " + str(args[1]))
 				accepted = self.learner.acceptValue(args[0], args[1], args[2], args[3], args[4]) # True == majority achieved; False == no majority
-				if self.proposer and int(args[3])+1 in self.kills:
+				if self.proposer and self.proposer.am_leader and self.proposer.seq_number == int(args[3]) and int(args[3])+1 in self.kills:
 					self.kill_next_round = True
-				if ( accepted == True and self.proposer and ( (int(args[3]) in self.kills) or (int(args[3])-1 in self.skips)) ):
+				this_is_a_kill = (int(args[3]) in self.kills) and self.kill_next_round
+				if ( accepted == True and self.proposer and self.proposer.am_leader and ( int(args[3]) in self.kills or (int(args[3])-1 in self.skips)) ):#accepted == True and self.proposer and ( this_is_a_kill or (int(args[3])-1 in self.skips)) ):
 					# This is just a test of killing the primary again and again
 					if int(args[3]) in self.kills:
 						self.kills.remove(int(args[3]))
 						self.kill_next_round = False
 					if int(args[3])-1 in self.skips:
 						self.skips.remove( int(args[3])-1 )
-					print("\n\nMANUALLY KILLING REPLICA " + str(self.idnum)+' at sequence number {}\n'.format(args[3]))
+					print("\nMANUALLY KILLING REPLICA " + str(self.idnum)+' at sequence number {}\n'.format(args[3]))
 					self.active = False
 
 			elif cmd == MessageType.NACK.value:

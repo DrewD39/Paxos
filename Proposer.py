@@ -16,7 +16,7 @@ class Proposer:
 
 
 	## Assume that any replica that wants to take leadership does it be initializing a new proposer
-	def __init__ (self, idnum, majority_numb, acceptor, skips, socket_connections_list = None):
+	def __init__ (self, idnum, majority_numb, acceptor, kills, skips, socket_connections_list = None):
 		self.value = "default_value"
 		self.am_leader = False
 		self.majority_numb = majority_numb
@@ -33,6 +33,7 @@ class Proposer:
 		if socket_connections_list != None:
 			self.set_socket_list(socket_connections_list)
 		self.skips = skips
+		self.kills = kills
 		self.missing_vals_of_learners = defaultdict(set) # dict of key: seq_num -> val: number of learners missing the value at this seq_num
 
 
@@ -50,16 +51,15 @@ class Proposer:
 			self.seq_number = seq_number_override'''
 
 
-		#if ( (client_name,client_seq_number) not in self.request_history ):  # if you've never seen this client_name, client_seq_num pair, it is a new request
-		self.seq_number += 1
-		if self.seq_number in self.skips: 		# skip logic: set up leader 0 to skip seq_num 3, then be killed on seq_num 5
-			printd("MANUALLY SKIPPING SEQ_NUM {}".format(self.seq_number))
+		if self.am_leader == True:
+			#if ( (client_name,client_seq_number) not in self.request_history ):  # if you've never seen this client_name, client_seq_num pair, it is a new request
 			self.seq_number += 1
+			if self.seq_number in self.skips: 		# skip logic: set up leader 0 to skip seq_num 3, then be killed on seq_num 5
+				print("\nMANUALLY SKIPPING SEQ_NUM {}".format(self.seq_number))
+				self.seq_number += 1
 
 		#self.request_history[(client_name,client_seq_number)] = (origin_socket, self.seq_number)
 
-
-		if self.am_leader == True:
 			msg =  str(self.leaderNum)
 			msg += "," + req_id
 			msg += "," + str(self.seq_number)
@@ -111,7 +111,11 @@ class Proposer:
 
 			if len(self.followers) == self.majority_numb: # time to become leader since we have enough followers
 				self.am_leader = True
-				self.seq_number = int(seq_number) # TODO BUG: This seems like a bug....
+				self.seq_number = int(seq_number)
+				if int(seq_number) in self.kills:
+					self.kills.remove(int(seq_number))
+				if int(seq_number)+1 in self.kills:
+					self.kills.remove(int(seq_number)+1)
 
 				# need to decide most relavant last value.
 				# find follower with highest prevLeaderNum. Break ties with seq_num, then val.
@@ -133,9 +137,12 @@ class Proposer:
 				# alternative: pass in acceptor on initialize. Possible bug if mem references aren't shared
 				# this function will set seq_num and value accordingly
 				if (int(max_last_follower[0]) != -1 and int(max_last_follower[2]) != -1):
-					# TODO: We need to send out this value, eventually
-					# origin_socket, client_name, client_seq_number, value
+
 					self.seq_number = max_last_follower[2]-1
+					if int(self.seq_number) in self.kills:
+						self.kills.remove(int(self.seq_number))
+					if int(self.seq_number)+1 in self.kills:
+						self.kills.remove(int(self.seq_number+1))
 					n_client_name = max_last_follower[1].split('-')[0]
 					n_client_seq_num = max_last_follower[1].split('-')[1]
 					n_val = max_last_follower[3]
@@ -191,7 +198,7 @@ class Proposer:
 					printd("INCREMENTING SEQ NUMBER IN PROPOSER")
 					self.seq_number += 1
 
-				full_msg = str(MessageType.COMMAND.value) + ":{},NOP,{},NOP".format(self.leaderNum,missing_seq_number)
+				full_msg = str(MessageType.COMMAND.value) + ":{},NOP,{},NOP1".format(self.leaderNum,missing_seq_number)
 				Messenger.broadcast_message(self.socket_connections_list, full_msg)
 				self.missing_vals_of_learners[missing_seq_number] = set()
 				printd("Leader num {} is proposing NOP at seq_num {}".format(self.leaderNum,missing_seq_number))

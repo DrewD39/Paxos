@@ -35,6 +35,7 @@ class Learner:
 		self.catchup_requests_count = dict() # serves as timeout
 		self.hasher = hashlib.md5()
 		self.hash_count = 0
+		self.exec_req_history = set() # set of req_id that have been exectured (exclude NOP)
 
 	def acceptValue (self, leaderNum, idnum, req_id, seq_number, value):
 		seq = int(seq_number)
@@ -145,13 +146,17 @@ class Learner:
 			else: # D2 # if you have executed for this req_id, but have majority again, execute NOP
 				alt_req = pop_req_id_from_pq(self.commands_to_execute, req_id) # remove and return the item with matching req_id in the pq
 				if alt_req == None: # req-id has already been executed
-					self.commands_to_execute.put((seq_number, "NOP", "NOP"))
+					if req_id in self.exec_req_history and req_id != "NOP":
+						self.commands_to_execute.put((seq_number, value, req_id))
+					else:
+						self.commands_to_execute.put((seq_number, "NOP2", "NOP"))
+
 				elif alt_req[0] > seq_number: # put the request with lowest seq_num onto the pq. The other will be a NOP
 					self.commands_to_execute.put((seq_number, value, req_id))
-					self.commands_to_execute.put((alt_req[0], "NOP", "NOP"))
+					self.commands_to_execute.put((alt_req[0], "NOP3", "NOP"))
 				else:
 					self.commands_to_execute.put(alt_req)
-					self.commands_to_execute.put((seq_number, "NOP", "NOP"))
+					self.commands_to_execute.put((seq_number, "NOP4", "NOP"))
 			self.accepted_seq_numbs[seq_number] = True
 			self.try_to_execute_commands() # Now try to process commands again
 
@@ -179,7 +184,7 @@ class Learner:
 				value = missing_value #max(self.prev_leader_nums[missing_seq_number], key=itemgetter(0))[1]
 				del self.prev_leader_nums[missing_seq_number]
 
-				if missing_seq_number > self.last_executed_seq_number and missing_seq_number < int(self.commands_to_execute.queue[0][0]): # ignore previous messages
+				if missing_seq_number > self.last_executed_seq_number and self.commands_to_execute.queue and missing_seq_number < int(self.commands_to_execute.queue[0][0]): # ignore previous messages
 					#self.chat_log[missing_seq_number] = missing_value
 					# DREW: why is this the case? The last executed command shouldn't change, right? #
 					#self.last_executed_seq_number = missing_seq_number # + 1
@@ -189,7 +194,8 @@ class Learner:
 					if seq_number_found == "True":
 						self.add_and_execute_seq_command(missing_seq_number, value, missing_req_id)
 					else:
-						self.add_and_execute_seq_command(missing_seq_number, "NOP", "NOP")
+						self.add_and_execute_seq_command(missing_seq_number, "NOP5", "NOP")
+						#print("Defaulted to NOP when seq_num = {}, val = {}, and req_id ={}".format(missing_seq_number, value, missing_req_id))
 					#self.commands_to_execute.put((missing_seq_number, value, "NONE"))
 					#self.try_to_execute_commands() # Now try to process commands again
 
@@ -199,7 +205,8 @@ class Learner:
 					sum_of_votes += len(i)
 					# if this is true, it is unable to achieve majority and all learners should execute NOP (catchup_requests_count acts as timeout)
 					if sum_of_votes >= self.majority_numb and self.catchup_requests_count[missing_seq_number] > 20:
-						self.add_and_execute_seq_command(missing_seq_number, "NOP", "NOP")
+						#print("Catchup attempts: {}".format(self.catchup_requests_count[missing_seq_number]))
+						self.add_and_execute_seq_command(missing_seq_number, "NOP6", "NOP")
 
 			'''
 			else: # check if this req-id is already in the to-execute queue. If so, this is a NOP
@@ -230,14 +237,16 @@ class Learner:
 
 	def add_msg_to_chat_log (self, seq_number, msg, req_id):
 		self.chat_log.append(req_id.split('-')[0] + ": " + msg)
-		# TODO: just for debugging, later remove this
-		#print self.get_chat_log()
 
+		# point of EXECUTION
 		# if NOP, add to chat log but do not print ('execute'). Also check seq_num for hashing
 		if str(req_id) != "NOP": # do nothing for NO OP
 			self.file_log = open("replica_" + str(self.idnum) + ".log", "a")
 			self.file_log.write(self.chat_log[seq_number] + '\n')#self.get_chat_log() + "\n")
 			self.file_log.close()
+			self.exec_req_history.add(req_id)
+		#else:
+		#	print("{} executing NOP with value {} at seq_num {}".format(self.idnum,self.chat_log[seq_number],seq_number))
 		if seq_number % 49 == 0 and seq_number != 0: # print hash every 50 commands
 			self.hash_count += 1
 			with open("replica_" + str(self.idnum) + ".log", 'rb') as afile:

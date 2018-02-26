@@ -6,6 +6,7 @@ from multiprocessing import Process, Semaphore
 from Client import Client
 import time
 from Util import printd
+import Messenger
 
 if __name__ == "__main__":
 
@@ -42,10 +43,11 @@ if __name__ == "__main__":
     if args.tests: # tests format:    0.1;skip,4;kill,9;skip,22;.....
         printd("tests = " + args.tests)
         test_list_str = args.tests.split(';')
-        try:
-            p = float(test_list_str[0])
-        except:
-            raise RuntimeError("Error: Must specify a p value")
+        #try:
+        p = float(test_list_str[0])
+        Messenger.set_threshold(p)
+        #except:
+        #    raise RuntimeError("Error: Must specify a p value")
         test_list = []
         try:
             for i in test_list_str[1:]: # for each test case (excluding p value)

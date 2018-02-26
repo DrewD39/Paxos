@@ -52,7 +52,7 @@ def pop_req_id_from_pq (pq, req_id):
 	to_return = None
 	while not pq.empty():
 		temp = pq.get()
-		if temp[2] == req_id:
+		if str(temp[2]) == str(req_id):
 			to_return = temp
 			continue
 		else:
